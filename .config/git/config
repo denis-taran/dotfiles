@@ -1,0 +1,45 @@
+[include]
+    path = ~/.config/git/local
+[pull]
+    rebase = true
+[branch]
+    autosetuprebase = always
+[push]
+    default = current
+    autoSetupRemote = true
+[core]
+    attributesFile = ~/.config/git/attributes
+	excludesfile = ~/.config/git/ignore
+	autocrlf = input
+	ignorecase = false
+    editor = code --wait
+    symlinks = true
+[color]
+	ui = true
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22
+[color "diff"]
+	meta = 11
+	frag = magenta bold
+	commit = yellow bold
+	old = red bold
+	new = green bold
+	whitespace = red reverse
+	func = 146 bold
+[init]
+	defaultBranch = main
+[fetch]
+    prune = true
+    pruneTags = true
+[diff]
+    algorithm = histogram
+    colorMoved = default
+[rerere]
+    enabled = true
+[merge]
+    conflictstyle = zdiff3
+[rebase]
+    autoStash = true

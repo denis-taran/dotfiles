@@ -1,0 +1,8 @@
+.config/*
+!.config/git/
+.config/git/local
+.config/git/allowed_signers
+!.config/karabiner/
+!.config/keychron/
+!.config/nvim/
+!.config/vs/

@@ -1,0 +1,28 @@
+/* Visual Studio Settings File */
+{
+  "projectsAndSolutions.buildAndRun.useSelectedProjectAsDefaultStartupProject": true,
+  "languages.dockerfile.general.wordWrapVisualGlyphs": false,
+  "languages.fSharpInteractive.general.wordWrapVisualGlyphs": false,
+  "languages.memory.general.wordWrapVisualGlyphs": false,
+  "languages.register.general.wordWrapVisualGlyphs": false,
+  "languages.typeScript.general.wordWrapVisualGlyphs": false,
+  "languages.vbScript.general.wordWrapVisualGlyphs": false,
+  "languages.xml.general.wordWrapVisualGlyphs": false,
+  "languages.defaults.general.wordWrapVisualGlyphs": true,
+  "windowsFormsDesigner.general.refactoring.enableRefactoringOnRename": true,
+  "textEditor.codeLens.enabled": false,
+  "languages.defaults.scrollbars.verticalScrollBarAnnotations": true,
+  "languages.defaults.scrollbars.verticalScrollBarMode": "map",
+  "languages.defaults.scrollbars.mapModePreview": false,
+  "languages.defaults.scrollbars.sourceOverviewWidth": "off",
+  "textEditor.advanced.textRendering": "grayscale",
+  "textEditor.advanced.textFormatting": "ideal",
+  "environment.visualExperience.useCompactSpacing": true,
+  "environment.visualExperience.hideCopilotBadge": true,
+  "environment.visualExperience.colorTheme": "system",
+  "textEditor.codeCleanup.profile": "profile1",
+  "environment.documents.checkForConsistentLineEndings": false,
+  "environment.visualExperience.forceWindowsTheme": true,
+  "textEditor.general.display.blockStructure": false,
+  "projectsAndSolutions.general.promptBeforeMove": false
+}
