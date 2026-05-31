@@ -48,10 +48,16 @@ fi
 # Bash Completion
 ###############################################################################
 
-if [[ -r /usr/share/bash-completion/bash_completion ]]; then
-    # shellcheck source=/dev/null
-    . /usr/share/bash-completion/bash_completion
-fi
+for _bashcomp in \
+    /usr/share/bash-completion/bash_completion \
+    /etc/bash_completion; do
+    if [[ -r "$_bashcomp" ]]; then
+        # shellcheck source=/dev/null
+        . "$_bashcomp"
+        break
+    fi
+done
+unset _bashcomp
 
 ###############################################################################
 # Security and SSH
@@ -64,7 +70,9 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
     command -v ssh-add.exe >/dev/null 2>&1 && alias ssh-add='ssh-add.exe'
     command -v op.exe >/dev/null 2>&1 && alias op='op.exe'
 else
-    export SSH_AUTH_SOCK="$HOME/.1password/agent.sock"
+    if [[ -S "$HOME/.1password/agent.sock" ]]; then
+        export SSH_AUTH_SOCK="$HOME/.1password/agent.sock"
+    fi
 fi
 
 ###############################################################################
@@ -75,8 +83,8 @@ shopt -s histappend
 
 export HISTTIMEFORMAT="%F %T "
 export HISTCONTROL=ignoreboth
-export HISTSIZE=1000
-export HISTFILESIZE=2000
+export HISTSIZE=100000
+export HISTFILESIZE=200000
 
 ###############################################################################
 # Kubernetes & Docker/Podman
@@ -109,8 +117,9 @@ disable_kube_info() {
 # shellcheck source=/dev/null
 [[ -f "$HOME/.config/op/plugins.sh" ]] && . "$HOME/.config/op/plugins.sh"
 
-[[ -x "/snap/aws-cli/current/bin/aws_completer" ]] &&
-    complete -C "/snap/aws-cli/current/bin/aws_completer" aws
+if command -v aws_completer >/dev/null 2>&1; then
+    complete -C aws_completer aws
+fi
 
 # shellcheck source=/dev/null
 [[ -r "$HOME/lib/azure-cli/az.completion" ]] &&
@@ -168,7 +177,8 @@ function set_prompt {
     return "$exit_status"
 }
 
-PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;}; }set_prompt"
+PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;}; }"
+PROMPT_COMMAND+="history -a; history -n; set_prompt"
 
 ###############################################################################
 # .NET
@@ -192,11 +202,14 @@ path_prepend "$HOME/.dotnet"
 # Editors
 ###############################################################################
 
-export EDITOR='nvim'
-
-alias c='code'
-alias vi='nvim'
-alias vim='nvim'
+if command -v nvim >/dev/null 2>&1; then
+    export EDITOR='nvim'
+    alias vi='nvim'
+    alias vim='nvim'
+else
+    export EDITOR='vim'
+fi
+command -v code >/dev/null 2>&1 && alias c='code'
 
 ###############################################################################
 # Other Settings

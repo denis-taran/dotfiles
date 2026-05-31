@@ -4,6 +4,7 @@
     rebase = true
 [branch]
     autosetuprebase = always
+    sort = -committerdate
 [push]
     default = current
     autoSetupRemote = true
@@ -43,3 +44,5 @@
     conflictstyle = zdiff3
 [rebase]
     autoStash = true
+[tag]
+    sort = version:refname
