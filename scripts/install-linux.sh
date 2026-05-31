@@ -36,25 +36,33 @@ readonly _HELM_GPG_FP="DDF78C3E6EBB2D2CC223C95C62BA89D07698DBC6"
 readonly _TERRAFORM_GPG_FP="798AEC654E5C15428C8E42EEAA16FCBCA621E701"
 readonly _1PASSWORD_GPG_FP="3FEF9748469ADBE15DA7CA80AC2D62742012EA22"
 
-if [ "$EUID" -ne 0 ]; then
-    echo "This script must be run as root. Run with: sudo ./install-linux.sh"
-    exit 1
+_is_root=false
+[ "$EUID" -eq 0 ] && _is_root=true
+if ! $_is_root; then
+    echo "Not running as root: package installation will be skipped."
 fi
 
-USERNAME="${SUDO_USER:-}"
-if [[ -z "$USERNAME" ]]; then
-    read -r -p "Enter the username to configure: " USERNAME
-fi
-
-if [[ ! "$USERNAME" =~ ^[a-z_][a-z0-9_-]*[$]?$ ]]; then
-    echo "ERROR: '$USERNAME' is not a valid Linux username" >&2
-    exit 1
-fi
-
-HOMEDIR="$(getent passwd "$USERNAME" | cut -d: -f6)"
-if [[ -z "$HOMEDIR" ]]; then
-    echo "no home dir for '$USERNAME'" >&2
-    exit 1
+if $_is_root; then
+    USERNAME="${SUDO_USER:-}"
+    if [[ -z "$USERNAME" ]]; then
+        read -r -p "Enter the username to configure: " USERNAME
+    fi
+    if [[ ! "$USERNAME" =~ ^[a-z_][a-z0-9_-]*[$]?$ ]]; then
+        echo "ERROR: '$USERNAME' is not a valid Linux username" >&2
+        exit 1
+    fi
+    HOMEDIR="$(getent passwd "$USERNAME" | cut -d: -f6)"
+    if [[ -z "$HOMEDIR" ]]; then
+        echo "no home dir for '$USERNAME'" >&2
+        exit 1
+    fi
+else
+    USERNAME="${USER:-}"
+    HOMEDIR="${HOME:-}"
+    if [[ -z "$USERNAME" || -z "$HOMEDIR" ]]; then
+        echo "Could not determine user or home directory" >&2
+        exit 1
+    fi
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -63,13 +71,26 @@ readonly USERNAME HOMEDIR SCRIPT_DIR
 
 # shellcheck source=/dev/null
 . /etc/os-release
-if [[ "${ID:-}" != "ubuntu" ]]; then
-    echo "only ubuntu is supported" >&2
-    exit 1
+_is_ubuntu=false
+[[ "${ID:-}" == "ubuntu" ]] && _is_ubuntu=true
+if ! $_is_ubuntu; then
+    if $_is_root; then
+        echo "only ubuntu is supported for full installation" >&2
+        exit 1
+    fi
+    echo "Non-Ubuntu distro detected: package installation will be skipped."
 fi
 
 is_wsl() {
     grep -qi "microsoft" /proc/version 2>/dev/null
+}
+
+run_as_user() {
+    if $_is_root; then
+        sudo -u "$USERNAME" -H "$@"
+    else
+        "$@"
+    fi
 }
 
 # owner arg sets chown on the link itself, not the target
@@ -124,91 +145,84 @@ create_link() {
     echo "Created link: $link -> $target"
 }
 
-safe_mkdir() {
-    local mode="${2:-}"
-    if [[ -n "$mode" ]]; then
-        sudo -u "$USERNAME" -H mkdir -m "$mode" -p "$1"
+run_as_user mkdir -p "$HOMEDIR/.config"
+run_as_user touch "$HOMEDIR/.hushlogin"
+
+if $_is_ubuntu && $_is_root; then
+    apt-get update
+
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg \
+        jq \
+        openssl \
+        software-properties-common \
+        xdg-user-dirs
+
+    add-apt-repository -y universe
+    apt-get update
+
+    update-ca-certificates
+
+    packages=(
+        "bash-completion"
+        "bat"
+        "bind9-dnsutils"
+        "build-essential"
+        "direnv"
+        "eza"
+        "fd-find"
+        "fzf"
+        "gh"
+        "git-lfs"
+        "git"
+        "htop"
+        "iproute2"
+        "iptables"
+        "lsb-release"
+        "neovim"
+        "pandoc"
+        "passt"
+        "pipx"
+        "podman-compose"
+        "podman"
+        "python-is-python3"
+        "python3-full"
+        "python3-venv"
+        "rename"
+        "ripgrep"
+        "shellcheck"
+        "shfmt"
+        "snapd"
+        "tmux"
+        "uidmap"
+        "unzip"
+        "xmlstarlet"
+        "yamllint"
+        "zip"
+        "zoxide"
+    )
+
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${packages[@]}"
+    apt-get clean
+    sudo -u "$USERNAME" -H git lfs install
+
+    snap list aws-cli >/dev/null 2>&1 || snap install aws-cli --classic
+    snap list node >/dev/null 2>&1 || snap install node --classic --channel="$NODE_SNAP_CHANNEL"
+
+    # pipx becuase the ansible PPA is perpetually broken on new ubuntu releases
+    if sudo -u "$USERNAME" -H bash -c 'pipx list --json 2>/dev/null | jq -e ".venvs | has(\"ansible\")" >/dev/null'; then
+        echo "ansible already installed via pipx. Skipping."
     else
-        sudo -u "$USERNAME" -H mkdir -p "$1"
+        sudo -u "$USERNAME" -H bash -c "pipx install --include-deps 'ansible==${_ANSIBLE_VERSION}'"
     fi
-}
+    sudo -u "$USERNAME" -H pipx ensurepath
 
-safe_mkdir "$HOMEDIR/.config"
-apt-get update
-
-DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    gnupg \
-    jq \
-    openssl \
-    software-properties-common \
-    xdg-user-dirs
-
-add-apt-repository -y universe
-apt-get update
-
-update-ca-certificates
-
-sudo -u "$USERNAME" -H touch "$HOMEDIR/.hushlogin"
-
-packages=(
-    "bash-completion"
-    "bat"
-    "bind9-dnsutils"
-    "build-essential"
-    "direnv"
-    "eza"
-    "fd-find"
-    "fzf"
-    "gh"
-    "git-lfs"
-    "git"
-    "htop"
-    "iproute2"
-    "iptables"
-    "lsb-release"
-    "neovim"
-    "pandoc"
-    "passt"
-    "pipx"
-    "podman-compose"
-    "podman"
-    "python-is-python3"
-    "python3-full"
-    "python3-venv"
-    "rename"
-    "ripgrep"
-    "shellcheck"
-    "shfmt"
-    "snapd"
-    "tmux"
-    "uidmap"
-    "unzip"
-    "xmlstarlet"
-    "yamllint"
-    "zip"
-    "zoxide"
-)
-
-DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${packages[@]}"
-apt-get clean
-sudo -u "$USERNAME" -H git lfs install
-
-snap list aws-cli >/dev/null 2>&1 || snap install aws-cli --classic
-snap list node >/dev/null 2>&1 || snap install node --classic --channel="$NODE_SNAP_CHANNEL"
-
-# pipx becuase the ansible PPA is perpetually broken on new ubuntu releases
-if sudo -u "$USERNAME" -H bash -c 'pipx list --json 2>/dev/null | jq -e ".venvs | has(\"ansible\")" >/dev/null'; then
-    echo "ansible already installed via pipx. Skipping."
-else
-    sudo -u "$USERNAME" -H bash -c "pipx install --include-deps 'ansible==${_ANSIBLE_VERSION}'"
-fi
-sudo -u "$USERNAME" -H pipx ensurepath
-
-# enable lingering so rootless podman services start without login
-if ! is_wsl; then
-    loginctl enable-linger "$USERNAME"
+    # enable lingering so rootless podman services start without login
+    if ! is_wsl; then
+        loginctl enable-linger "$USERNAME"
+    fi
 fi
 
 declare -A links=(
@@ -222,23 +236,24 @@ declare -A links=(
     ["$SCRIPT_DIR/.editorconfig"]="$HOMEDIR/.editorconfig"
 )
 
-sudo -u "$USERNAME" -H xdg-user-dirs-update
-
-safe_mkdir "$HOMEDIR/.ssh"
-chown "$USERNAME:" "$HOMEDIR/.ssh"
+command -v xdg-user-dirs-update >/dev/null 2>&1 && run_as_user xdg-user-dirs-update
+run_as_user mkdir -p "$HOMEDIR/.ssh"
+$_is_root && chown "$USERNAME:" "$HOMEDIR/.ssh" || true
 chmod 700 "$HOMEDIR/.ssh"
 
+_link_owner=""
+if $_is_root; then _link_owner="$USERNAME"; fi
 for src in "${!links[@]}"; do
     dest="${links[$src]}"
-    safe_mkdir "$(dirname "$dest")"
-    create_link "$src" "$dest" "$USERNAME"
+    run_as_user mkdir -p "$(dirname "$dest")"
+    create_link "$src" "$dest" "${_link_owner:-}"
 done
 
 _git_cfg="$HOMEDIR/.config/git/local"
 _allowed_signers="$HOMEDIR/.config/git/allowed_signers"
 
-safe_mkdir "$HOMEDIR/.config/git"
-sudo -u "$USERNAME" -H touch "$_git_cfg"
+run_as_user mkdir -p "$HOMEDIR/.config/git"
+run_as_user touch "$_git_cfg"
 chmod 600 "$_git_cfg"
 
 _git_cfg_list=$(git config -f "$_git_cfg" --list 2>/dev/null || true)
@@ -252,8 +267,8 @@ if [[ "$_git_cfg_list" != *"user.name="* || "$_git_cfg_list" != *"user.email="* 
         echo "git email looks wrong" >&2
         exit 1
     }
-    sudo -u "$USERNAME" -H git config -f "$_git_cfg" user.name "$GIT_NAME"
-    sudo -u "$USERNAME" -H git config -f "$_git_cfg" user.email "$GIT_EMAIL"
+    run_as_user git config -f "$_git_cfg" user.name "$GIT_NAME"
+    run_as_user git config -f "$_git_cfg" user.email "$GIT_EMAIL"
 else
     GIT_EMAIL=$(grep '^user\.email=' <<<"$_git_cfg_list" | cut -d= -f2-)
 fi
@@ -266,18 +281,18 @@ if [[ "$_git_cfg_list" != *"user.signingkey="* ]]; then
             echo "not an SSH public key (must start with ssh-)" >&2
             exit 1
         }
-        sudo -u "$USERNAME" -H git config -f "$_git_cfg" \
+        run_as_user git config -f "$_git_cfg" \
             user.signingkey "$GIT_SSH_KEY"
-        sudo -u "$USERNAME" -H git config -f "$_git_cfg" commit.gpgsign true
-        sudo -u "$USERNAME" -H git config -f "$_git_cfg" gpg.format ssh
-        sudo -u "$USERNAME" -H git config -f "$_git_cfg" gpg.ssh.allowedSignersFile "$_allowed_signers"
-        echo "$GIT_EMAIL $GIT_SSH_KEY" | sudo -u "$USERNAME" -H tee "$_allowed_signers" >/dev/null
+        run_as_user git config -f "$_git_cfg" commit.gpgsign true
+        run_as_user git config -f "$_git_cfg" gpg.format ssh
+        run_as_user git config -f "$_git_cfg" gpg.ssh.allowedSignersFile "$_allowed_signers"
+        echo "$GIT_EMAIL $GIT_SSH_KEY" | run_as_user tee "$_allowed_signers" >/dev/null
         chmod 600 "$_allowed_signers"
     fi
 fi
 
 if is_wsl; then
-    sudo -u "$USERNAME" -H git config -f "$_git_cfg" core.sshCommand ssh.exe
+    run_as_user git config -f "$_git_cfg" core.sshCommand ssh.exe
     _wsl_appdata=$(
         /mnt/c/Windows/System32/cmd.exe /c "echo %LOCALAPPDATA%" \
             2>/dev/null | tail -1 | tr -d '\r'
@@ -286,7 +301,7 @@ if is_wsl; then
         _wsl_signer=$(wslpath -u "$_wsl_appdata" 2>/dev/null || true)
         _wsl_signer+="/Microsoft/WindowsApps/op-ssh-sign-wsl.exe"
         if [[ -x "$_wsl_signer" ]]; then
-            sudo -u "$USERNAME" -H git config -f "$_git_cfg" \
+            run_as_user  git config -f "$_git_cfg" \
                 gpg.ssh.program "$_wsl_signer"
         fi
     fi
@@ -358,110 +373,112 @@ download_and_install_binary() {
     install -m 0755 "$dlfile" "$dest"
 }
 
-_arch=$(dpkg --print-architecture)
-[[ "$_arch" == "amd64" || "$_arch" == "arm64" ]] || {
-    echo "unsupported arch: $_arch" >&2
-    exit 1
-}
+if $_is_ubuntu && $_is_root; then 
+    _arch=$(dpkg --print-architecture)
+    [[  "$_arch" == "amd64" || "$_arch" == "arm64" ]] || {
+        echo "unsupported arch: $_arch" >&2
+        exit 1
+    }
 
-# azcli snap is community-published
-_codename=$(apt_key "https://packages.microsoft.com/keys/microsoft.asc" "/etc/apt/keyrings/microsoft.gpg" \
-    "$_SUPPORTED_MS_CODENAMES" "$_MICROSOFT_GPG_FP")
-printf 'deb [arch=%s signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ %s main\n' \
-    "$_arch" "${_codename/resolute/noble}" >/etc/apt/sources.list.d/azure-cli.list
+    # azcli snap is community-published
+    _codename=$(apt_key "https://packages.microsoft.com/keys/microsoft.asc" "/etc/apt/keyrings/microsoft.gpg" \
+        "$_SUPPORTED_MS_CODENAMES" "$_MICROSOFT_GPG_FP")
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ %s main\n' \
+        "$_arch" "${_codename/resolute/noble}" >/etc/apt/sources.list.d/azure-cli.list
 
-# dotnet uses a separate 2025 MS key
-apt_key "https://packages.microsoft.com/keys/microsoft-2025.asc" \
-    "/etc/apt/keyrings/microsoft-2025.gpg" \
-    "" "$_MICROSOFT_2025_GPG_FP" >/dev/null
-printf 'deb [arch=%s signed-by=/etc/apt/keyrings/microsoft-2025.gpg] https://packages.microsoft.com/ubuntu/%s/prod %s main\n' \
-    "$_arch" "$VERSION_ID" "$_codename" >/etc/apt/sources.list.d/dotnet.list
+    # dotnet uses a separate 2025 MS key
+    apt_key "https://packages.microsoft.com/keys/microsoft-2025.asc" \
+        "/etc/apt/keyrings/microsoft-2025.gpg" \
+        "" "$_MICROSOFT_2025_GPG_FP" >/dev/null
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/microsoft-2025.gpg] https://packages.microsoft.com/ubuntu/%s/prod %s main\n' \
+        "$_arch" "$VERSION_ID" "$_codename" >/etc/apt/sources.list.d/dotnet.list
 
-apt_key "https://packages.buildkite.com/helm-linux/helm-debian/gpgkey" "/usr/share/keyrings/helm.gpg" \
-    "" "$_HELM_GPG_FP"
-printf 'deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main\n' \
-    >/etc/apt/sources.list.d/helm.list
+    apt_key "https://packages.buildkite.com/helm-linux/helm-debian/gpgkey" "/usr/share/keyrings/helm.gpg" \
+        "" "$_HELM_GPG_FP"
+    printf 'deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main\n' \
+        >/etc/apt/sources.list.d/helm.list
 
-_hc_codename=$(apt_key "https://apt.releases.hashicorp.com/gpg" \
-    "/usr/share/keyrings/hashicorp-archive-keyring.gpg" \
-    "$_SUPPORTED_HC_CODENAMES" "$_TERRAFORM_GPG_FP")
-# terraform is only in the test channel on recent ubuntu
-printf 'deb [arch=%s signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com %s test\n' \
-    "$_arch" "$_hc_codename" >/etc/apt/sources.list.d/hashicorp.list
+    _hc_codename=$(apt_key "https://apt.releases.hashicorp.com/gpg" \
+        "/usr/share/keyrings/hashicorp-archive-keyring.gpg" \
+        "$_SUPPORTED_HC_CODENAMES" "$_TERRAFORM_GPG_FP")
+    # terraform is only in the test channel on recent ubuntu
+    printf 'deb [arch=%s signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com %s test\n' \
+        "$_arch" "$_hc_codename" >/etc/apt/sources.list.d/hashicorp.list
 
-apt-get update
-
-DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
-    azure-cli helm "dotnet-sdk-${_DOTNET_SDK_VERSION}" terraform
-
-if ! is_wsl; then
-    apt_key "https://downloads.1password.com/linux/keys/1password.asc" \
-        "/usr/share/keyrings/1password-archive-keyring.gpg" \
-        "" "$_1PASSWORD_GPG_FP" >/dev/null
-    printf 'deb [arch=%s signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/%s stable main\n' \
-        "$_arch" "$_arch" >/etc/apt/sources.list.d/1password.list
     apt-get update
+
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
-        1password-cli
-fi
-apt-get clean
+        azure-cli helm "dotnet-sdk-${_DOTNET_SDK_VERSION}" terraform
 
-download_and_install_binary \
-    "https://github.com/kubernetes-sigs/kind/releases/download/${_KIND_VERSION}/kind-linux-$_arch" \
-    "${_KIND_SHA256[$_arch]}" /usr/local/bin/kind
+    if ! is_wsl; then
+        apt_key "https://downloads.1password.com/linux/keys/1password.asc" \
+            "/usr/share/keyrings/1password-archive-keyring.gpg" \
+            "" "$_1PASSWORD_GPG_FP" >/dev/null
+        printf 'deb [arch=%s signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/%s stable main\n' \
+            "$_arch" "$_arch" >/etc/apt/sources.list.d/1password.list
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
+            1password-cli
+    fi
+    apt-get clean
 
-download_and_install_binary \
-    "https://dl.k8s.io/release/${_KUBECTL_VERSION}/bin/linux/$_arch/kubectl" \
-    "${_KUBECTL_SHA256[$_arch]}" /usr/local/bin/kubectl
+    download_and_install_binary \
+        "https://github.com/kubernetes-sigs/kind/releases/download/${_KIND_VERSION}/kind-linux-$_arch" \
+        "${_KIND_SHA256[$_arch]}" /usr/local/bin/kind
 
-download_and_install_binary \
-    "https://github.com/mikefarah/yq/releases/download/${_YQ_VERSION}/yq_linux_$_arch" \
-    "${_YQ_SHA256[$_arch]}" /usr/local/bin/yq
+    download_and_install_binary \
+        "https://dl.k8s.io/release/${_KUBECTL_VERSION}/bin/linux/$_arch/kubectl" \
+        "${_KUBECTL_SHA256[$_arch]}" /usr/local/bin/kubectl
 
-ln -sfnT /usr/bin/batcat /usr/local/bin/bat
-ln -sfnT /usr/bin/fdfind /usr/local/bin/fd
+    download_and_install_binary \
+        "https://github.com/mikefarah/yq/releases/download/${_YQ_VERSION}/yq_linux_$_arch" \
+        "${_YQ_SHA256[$_arch]}" /usr/local/bin/yq
 
-echo "net.ipv4.ip_forward=1" >/etc/sysctl.d/99-ip-forward.conf
-sysctl -w net.ipv4.ip_forward=1
+    ln -sfnT /usr/bin/batcat /usr/local/bin/bat
+    ln -sfnT /usr/bin/fdfind /usr/local/bin/fd
 
-# runs kind as regular user, optionally injecting env vars
-_kind_as_user() {
-    if is_wsl; then
-        sudo -u "$USERNAME" -H env KIND_EXPERIMENTAL_PROVIDER=podman NETAVARK_FW=iptables kind "$@"
+    echo "net.ipv4.ip_forward=1" >/etc/sysctl.d/99-ip-forward.conf
+    sysctl -w net.ipv4.ip_forward=1
+
+    # runs kind as regular user, optionally injecting env vars
+    _kind_as_user() {
+        if is_wsl; then
+            sudo -u "$USERNAME" -H env KIND_EXPERIMENTAL_PROVIDER=podman NETAVARK_FW=iptables kind "$@"
+        else
+            sudo -u "$USERNAME" -H kind "$@"
+        fi
+    }
+
+    if _kind_as_user get clusters 2>/dev/null | grep -q "^kind$"; then
+        echo "kind cluster already exists. Skipping creation."
     else
-        sudo -u "$USERNAME" -H kind "$@"
+        if is_wsl; then
+            [[ -e /usr/sbin/iptables-legacy ]] && update-alternatives --set iptables /usr/sbin/iptables-legacy
+            [[ -e /usr/sbin/ip6tables-legacy ]] && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+            sudo -u "$USERNAME" -H podman network rm kind 2>/dev/null || true
+            sudo -u "$USERNAME" -H podman network create --ipv6=false kind
+        fi
+        _kind_as_user create cluster
     fi
-}
 
-if _kind_as_user get clusters 2>/dev/null | grep -q "^kind$"; then
-    echo "kind cluster already exists. Skipping creation."
-else
-    if is_wsl; then
-        [[ -e /usr/sbin/iptables-legacy ]] && update-alternatives --set iptables /usr/sbin/iptables-legacy
-        [[ -e /usr/sbin/ip6tables-legacy ]] && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
-        sudo -u "$USERNAME" -H podman network rm kind 2>/dev/null || true
-        sudo -u "$USERNAME" -H podman network create --ipv6=false kind
+    kube_dir="$HOMEDIR/.kube"
+    sudo -u "$USERNAME" -H mkdir -p "$kube_dir"
+
+    user_cfg="$kube_dir/config"
+    tmp_kind_cfg=$(mktemp)
+    tmp_merged=""
+    trap 'rm -f "$tmp_kind_cfg" ${tmp_merged:+"$tmp_merged"}' EXIT
+
+    _kind_as_user get kubeconfig >"$tmp_kind_cfg"
+    chown "$USERNAME" "$tmp_kind_cfg"
+
+    if [[ -f "$user_cfg" ]]; then
+        tmp_merged=$(mktemp)
+        sudo -u "$USERNAME" -H env "KUBECONFIG=${tmp_kind_cfg}:${user_cfg}" kubectl config view --flatten >"$tmp_merged"
+        install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_merged" "$user_cfg" 
+    else
+        install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_kind_cfg" "$user_cfg"
     fi
-    _kind_as_user create cluster
+
+    sudo -u "$USERNAME" -H kubectl config use-context kind-kind
 fi
-
-kube_dir="$HOMEDIR/.kube"
-sudo -u "$USERNAME" -H mkdir -p "$kube_dir"
-
-user_cfg="$kube_dir/config"
-tmp_kind_cfg=$(mktemp)
-tmp_merged=""
-trap 'rm -f "$tmp_kind_cfg" ${tmp_merged:+"$tmp_merged"}' EXIT
-
-_kind_as_user get kubeconfig >"$tmp_kind_cfg"
-chown "$USERNAME" "$tmp_kind_cfg"
-
-if [[ -f "$user_cfg" ]]; then
-    tmp_merged=$(mktemp)
-    sudo -u "$USERNAME" -H env "KUBECONFIG=${tmp_kind_cfg}:${user_cfg}" kubectl config view --flatten >"$tmp_merged"
-    install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_merged" "$user_cfg" 
-else
-    install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_kind_cfg" "$user_cfg"
-fi
-
-sudo -u "$USERNAME" -H kubectl config use-context kind-kind

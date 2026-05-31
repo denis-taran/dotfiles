@@ -3,10 +3,15 @@
 $ErrorActionPreference = "Stop"
 
 $scriptPath = $MyInvocation.MyCommand.Definition
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $elevatedArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath)
-    Start-Process pwsh -ArgumentList $elevatedArgs -Verb RunAs
-    exit
+$IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$CanSymlink = $IsAdmin -or (
+    (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" -ErrorAction SilentlyContinue).AllowDevelopmentWithoutDevLicense -eq 1
+)
+if (-not $IsAdmin) {
+    Write-Warning "The script is running without administrator privileges, so certain settings will be skipped."
+}
+if (-not $CanSymlink) {
+    Write-Warning "The dotfiles will be copied instead of being linked because symlinks are unavailable."
 }
 
 $RepoRoot = Split-Path -Path (Split-Path -Path $scriptPath -Parent) -Parent
@@ -34,18 +39,23 @@ function Set-Link($TargetPath, $LinkPath) {
     $dir = Split-Path $LinkPath
     if ($dir) { New-Item $dir -ItemType Directory -Force | Out-Null }
 
-    New-Item -ItemType SymbolicLink `
-        -Path $LinkPath `
-        -Target $TargetPath `
-        -Force | Out-Null
+    if ($CanSymlink) {
+        New-Item -ItemType SymbolicLink `
+            -Path $LinkPath `
+            -Target $TargetPath `
+            -Force | Out-Null
+    } else {
+        Copy-Item -LiteralPath $TargetPath -Destination $LinkPath -Force
+    }
 }
 
 function Install-DotFiles() {
-    $vsSettings = (
-        Resolve-Path `
-            "$env:LOCALAPPDATA\Microsoft\VisualStudio\[0-9]*\settings.json" `
-            -ErrorAction SilentlyContinue
-    ).Path | Sort-Object | Select-Object -Last 1
+    $vsSettings = Resolve-Path `
+        "$env:LOCALAPPDATA\Microsoft\VisualStudio\[0-9]*\settings.json" `
+        -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty Path |
+        Sort-Object |
+        Select-Object -Last 1
 
     if ($vsSettings) {
         Set-Link -LinkPath $vsSettings -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\vs\settings.json')
@@ -113,6 +123,7 @@ function Install-Apps() {
         "AgileBits.1Password.CLI",
         "ajeetdsouza.zoxide",
         "Amazon.AWSCLI",
+        "Microsoft.DotNet.SDK.10",
         "dotPDN.PaintDotNet",
         "Git.Git",
         "Microsoft.AzureCLI",
@@ -171,17 +182,49 @@ function Uninstall-Preinstalled-Apps() {
         "*WebExperience*"
     )
 
-    foreach ($package in $uninstall) {
-        Get-AppxPackage -PackageTypeFilter Main, Bundle, Resource |
-        Where-Object { $_.PackageFullName -like $package } |
-        ForEach-Object {
-            Write-Host "remove $($_.PackageFullName)"
-            Remove-AppxPackage -Package $_.PackageFullName -AllUsers
+    $installedPackages = Get-AppxPackage -PackageTypeFilter Main, Bundle
+    $provisionedOutput = & dism.exe /Online /Get-ProvisionedAppxPackages 2>&1
+    $provisionedPackages = foreach ($line in $provisionedOutput) {
+        if ($line -match '^\s*PackageName\s*:\s*(.+)$') {
+            $matches[1].Trim()
         }
     }
 
-    winget uninstall --id Microsoft.OneDrive --exact
-    REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe" /v IsEnabled /t REG_DWORD /d 0 /f
+    foreach ($package in $uninstall) {
+        $packagesToRemove = $installedPackages |
+        Where-Object {
+            $_.Name -like $package -or
+            $_.PackageFamilyName -like $package -or
+            $_.PackageFullName -like $package
+        } |
+        Group-Object PackageFamilyName
+
+        foreach ($packageGroup in $packagesToRemove) {
+            $candidate = $packageGroup.Group |
+            Where-Object { $_.PackageFullName -like '*_~_*' } |
+            Select-Object -First 1
+
+            if (-not $candidate) {
+                $candidate = $packageGroup.Group | Select-Object -First 1
+            }
+
+            try {
+                Remove-AppxPackage -Package $candidate.PackageFullName
+            }
+            catch {
+                Write-Warning "failed to remove '$($candidate.PackageFullName)': $($_.Exception.Message)"
+            }
+        }
+
+        foreach ($packageName in $provisionedPackages | Where-Object { $_ -like $package }) {
+            try {
+                & dism.exe /Online /Remove-ProvisionedAppxPackage "/PackageName:$packageName" /NoRestart 2>&1
+            }
+            catch {
+                Write-Warning "failed to remove provisioned '$packageName': $($_.Exception.Message)"
+            }
+        }
+    }
 }
 
 function Disable-Services() {
@@ -271,7 +314,9 @@ function Set-Keyboard() {
     $desiredValue = 0
 
     Set-ItemProperty -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Value $desiredValue
-    REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout" /V "Scancode Map" /T REG_BINARY /D "000000000000000002000000000052e000000000" /F
+    if ($IsAdmin) {
+        REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout" /V "Scancode Map" /T REG_BINARY /D "000000000000000002000000000052e000000000" /F
+    }
     REG ADD "HKCU\Control Panel\Accessibility\StickyKeys" /V "Flags" /T REG_SZ /D "26" /F
 
     if (-not ([System.Management.Automation.PSTypeName]'RefreshSystemSettings').Type) {
@@ -363,14 +408,16 @@ function Set-EdgeSettings() {
 }
 
 function Disable-Copilot() {
-    reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v SettingsPageVisibility /t REG_SZ /d "hide:aicomponents;" /f
     reg add "HKCU\Software\Microsoft\input\Settings" /v InsightsEnabled /t REG_DWORD /d 0 /f
-    reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v CopilotCDPPageContext /t REG_DWORD /d 0 /f
-    reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v CopilotPageContext /t REG_DWORD /d 0 /f
-    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge" /v HubsSidebarEnabled /t REG_DWORD /d 0 /f
-    reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings" /v AutoOpenCopilotLargeScreens /t REG_DWORD /d 0 /f
-    reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI" /v Value /t REG_SZ /d Deny /f
-    reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" /v LetAppsAccessGenerativeAI /t REG_DWORD /d 2 /f
+    if ($IsAdmin) {
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v SettingsPageVisibility /t REG_SZ /d "hide:aicomponents;" /f
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v CopilotCDPPageContext /t REG_DWORD /d 0 /f
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v CopilotPageContext /t REG_DWORD /d 0 /f
+        reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge" /v HubsSidebarEnabled /t REG_DWORD /d 0 /f
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings" /v AutoOpenCopilotLargeScreens /t REG_DWORD /d 0 /f
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI" /v Value /t REG_SZ /d Deny /f
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" /v LetAppsAccessGenerativeAI /t REG_DWORD /d 2 /f
+    }
 }
 
 function Set-RegionalFormat() {
@@ -386,16 +433,18 @@ function Set-ExplorerSettings() {
     REG ADD "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /V "ShowFrequent" /T REG_DWORD /D 0 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V HideFileExt /T REG_dWORD /D 0 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V LaunchTo /T REG_dWORD /D 1 /F
-    REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /V DisableSearchBoxSuggestions /T REG_dWORD /D 1 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoComplete" /V AutoSuggest /T REG_SZ /D no /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V ShowInfoTip /T REG_dWORD /D 0 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V ShowSyncProviderNotifications /T REG_dWORD /D 0 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V "UseCompactMode" /T REG_DWORD /D "1" /F
-    $null = New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Force
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{6767B3BC-8FF7-11EC-B909-0242AC120002}" -Value "" -Type String -Force
-    REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer" /v MultiTaskingAltTabFilter /t REG_DWORD /d 3 /f
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}" -Value "" -Type String -Force
-    REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /V HideRecentlyAddedApps /T REG_dWORD /D 1 /F
+    if ($IsAdmin) {
+        REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /V DisableSearchBoxSuggestions /T REG_dWORD /D 1 /F
+        $null = New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Force
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{6767B3BC-8FF7-11EC-B909-0242AC120002}" -Value "" -Type String -Force
+        REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer" /v MultiTaskingAltTabFilter /t REG_DWORD /d 3 /f
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}" -Value "" -Type String -Force
+        REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /V HideRecentlyAddedApps /T REG_dWORD /D 1 /F
+    }
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 2
     Stop-Process -Name explorer -Force
 }
@@ -466,9 +515,6 @@ function Set-LockScreenSettings() {
 
 function Disable-ContentDelivery() {
     REG ADD "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 0 /f
-    REG ADD "HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 0 /f
-    REG ADD "HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\CloudContent" /v DisableWindowsConsumerFeatures /t REG_DWORD /d 1 /f
-    REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /V AllowOnlineTips /T REG_dWORD /D 0 /F
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "ContentDeliveryAllowed" -Value 0 -Type DWord -Force
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "OemPreInstalledAppsEnabled" -Value 0 -Type DWord -Force
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "PreInstalledAppsEnabled" -Value 0 -Type DWord -Force
@@ -481,15 +527,26 @@ function Disable-ContentDelivery() {
     reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"  /v SubscribedContent-353694Enabled /t REG_dWORD /d 0 /f
     reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v SubscribedContent-353696Enabled /t REG_dWORD /d 0 /f
     reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v SubscribedContent-353698Enabled /t REG_dWORD /d 0 /f
-    REG ADD "HKLM\Software\Policies\Microsoft\Windows\CloudContent" /V "DisableWindowsSpotlightFeatures" /T "REG_DWORD" /D "1" /F
     REG ADD "HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\CloudContent" /V "DisableThirdPartySuggestions" /T REG_DWORD /D 1 /F
-    REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /V DisableSoftLanding /T REG_dWORD /D 1 /F
+    if ($IsAdmin) {
+        REG ADD "HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 0 /f
+        REG ADD "HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\CloudContent" /v DisableWindowsConsumerFeatures /t REG_DWORD /d 1 /f
+        REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /V AllowOnlineTips /T REG_dWORD /D 0 /F
+        REG ADD "HKLM\Software\Policies\Microsoft\Windows\CloudContent" /V "DisableWindowsSpotlightFeatures" /T "REG_DWORD" /D "1" /F
+        REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /V DisableSoftLanding /T REG_dWORD /D 1 /F
+    }
 }
 
 function Set-PowerShellProfile() {
     $customProfilePath = Join-Path -Path $RepoRoot -ChildPath 'PowerShellProfile.ps1'
     $defaultProfilePath = $PROFILE
-    Set-Link -TargetPath $customProfilePath -LinkPath $defaultProfilePath
+    if ($CanSymlink) {
+        Set-Link -TargetPath $customProfilePath -LinkPath $defaultProfilePath
+    } else {
+        $dir = Split-Path $defaultProfilePath
+        if ($dir) { New-Item $dir -ItemType Directory -Force | Out-Null }
+        ". '$customProfilePath'" | Set-Content -LiteralPath $defaultProfilePath -Encoding utf8NoBOM
+    }
 }
 
 function Set-PowerShellSettings() {
@@ -519,21 +576,24 @@ function Enable-Virtualization() {
 }
 
 function Set-PrivacySettings() {
-    REG ADD "HKLM\Software\Policies\Microsoft\Windows\System" /V AllowCrossDeviceClipboard /T REG_DWORD /D 0 /F
-    $null = New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" -Force -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" -Name "DisabledByGroupPolicy" -Value 1 -Type DWord -Force
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type DWord -Force
-    REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /V DisableTailoredExperiencesWithDiagnosticData /T REG_dWORD /D 1 /F
-    REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /V AllowTelemetry /T REG_dWORD /D 0 /F
-    REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" /v AllowTelemetry /t REG_dWORD /d 0 /f
-    REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput" /V AllowLinguisticDataCollection /T REG_dWORD /D 0 /F
-    REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy" /V TailoredExperiencesWithDiagnosticDataEnabled /T REG_dWORD /D 0 /F
     REG ADD "HKCU\Software\Policies\Microsoft\Windows\CloudContent" /V DisableTailoredExperiencesWithDiagnosticData /T REG_dWORD /D 1 /F
-    REG ADD "HKLM\SYSTEM\CurrentControlSet\Services\DiagTrack" /V Start /T REG_dWORD /D 4 /F
-    REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /V DoNotShowFeedbackNotifications /T REG_dWORD /D 1 /F
-    REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /V DisableDiagnosticDataViewer /T REG_dWORD /D 1 /F
-    REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet" /V SubmitSamplesConsent /T REG_dWORD /D 2 /F
-    reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_dWORD /d 1 /f
+    if ($IsAdmin) {
+        REG ADD "HKLM\Software\Policies\Microsoft\Windows\System" /V AllowCrossDeviceClipboard /T REG_DWORD /D 0 /F
+        $null = New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" -Force -ErrorAction SilentlyContinue
+        $null = New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" -Name "DisabledByGroupPolicy" -Value 1 -Type DWord -Force
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type DWord -Force
+        REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /V DisableTailoredExperiencesWithDiagnosticData /T REG_dWORD /D 1 /F
+        REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /V AllowTelemetry /T REG_dWORD /D 0 /F
+        REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" /v AllowTelemetry /t REG_dWORD /d 0 /f
+        REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput" /V AllowLinguisticDataCollection /T REG_dWORD /D 0 /F
+        REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy" /V TailoredExperiencesWithDiagnosticDataEnabled /T REG_dWORD /D 0 /F
+        REG ADD "HKLM\SYSTEM\CurrentControlSet\Services\DiagTrack" /V Start /T REG_dWORD /D 4 /F
+        REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /V DoNotShowFeedbackNotifications /T REG_dWORD /D 1 /F
+        REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /V DisableDiagnosticDataViewer /T REG_dWORD /D 1 /F
+        REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet" /V SubmitSamplesConsent /T REG_dWORD /D 2 /F
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_dWORD /d 1 /f
+    }
 
     # electron pwd managers can't use the flag in windows API that keeps passwords
     # out of clipboard history. bitwarden has been dragging this out for years now:
@@ -574,7 +634,9 @@ function Backup-Registry() {
     New-Item $backupDir -ItemType Directory -Force | Out-Null
     Write-Host "Backing up registry to $backupDir ..."
     reg export HKCU "$backupDir\HKCU.reg" /y
-    reg export HKLM "$backupDir\HKLM.reg" /y
+    if ($IsAdmin) {
+        reg export HKLM "$backupDir\HKLM.reg" /y
+    }
 }
 
 Write-Warning @"
@@ -589,36 +651,39 @@ if ($confirm -ne 'yes') {
 
 Backup-Registry
 Install-DotFiles
-Install-Apps
+if ($IsAdmin) { Install-Apps }
 Set-GitLocalConfig
-Uninstall-Preinstalled-Apps
-Disable-Services
-Disable-WindowsFeatures
-Set-SecurityBaseline
-Set-PowerManagement
 Set-Keyboard
 Set-NoSoundScheme
-Set-WindowsSecurity
-Set-DeveloperSettings
-Set-EdgeSettings
 Disable-Copilot
 Set-RegionalFormat
 Set-ExplorerSettings
-Disable-ConnectivityFeatures
 Set-ThemeSettings
-Set-StorageSettings
 Set-NotificationSettings
-Enable-LocationAndTz
 Set-UIAnimations
 Register-NugetSource
 Set-LockScreenSettings
 Disable-ContentDelivery
 Set-PowerShellProfile
 Set-PowerShellSettings
-Invoke-PerformanceTweak
-Enable-Virtualization
 Set-PrivacySettings
-Set-WindowsUpdateSettings
 Set-XdgPaths
+
+if ($IsAdmin) {
+    Uninstall-Preinstalled-Apps
+    Disable-Services
+    Disable-WindowsFeatures
+    Set-SecurityBaseline
+    Set-PowerManagement
+    Set-WindowsSecurity
+    Set-DeveloperSettings
+    Set-EdgeSettings
+    Disable-ConnectivityFeatures
+    Set-StorageSettings
+    Enable-LocationAndTz
+    Invoke-PerformanceTweak
+    Enable-Virtualization
+    Set-WindowsUpdateSettings
+}
 
 Read-Host "`nPress Enter to continue..."
