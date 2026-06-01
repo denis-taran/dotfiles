@@ -195,6 +195,7 @@ if $_is_ubuntu && $_is_root; then
         "shellcheck"
         "shfmt"
         "snapd"
+        "tealdeer"
         "tmux"
         "uidmap"
         "unzip"
