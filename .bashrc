@@ -81,7 +81,10 @@ fi
 
 shopt -s histappend
 
-export HISTTIMEFORMAT="%F %T "
+if [[ ! "${HISTTIMEFORMAT@a}" == *r* ]]; then
+    export HISTTIMEFORMAT="%F %T "
+fi
+
 export HISTCONTROL=ignoreboth
 export HISTSIZE=100000
 export HISTFILESIZE=200000
@@ -162,7 +165,7 @@ function set_prompt {
 
     local gdir ip
     gdir=$(git rev-parse --absolute-git-dir 2>/dev/null)
-    [[ -n "$SSH_CONNECTION" ]] && ip="${SSH_CONNECTION%% *}"
+    [[ -n "$SSH_CONNECTION" ]] && read -r _ _ ip _ <<< "$SSH_CONNECTION"
 
     local git kube ssh uchar
     git=$(git_prompt "$gdir")

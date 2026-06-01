@@ -1,5 +1,4 @@
 
-#Requires -Version 7
 $ErrorActionPreference = "Stop"
 
 $scriptPath = $MyInvocation.MyCommand.Definition
@@ -7,6 +6,19 @@ $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 $CanSymlink = $IsAdmin -or (
     (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" -ErrorAction SilentlyContinue).AllowDevelopmentWithoutDevLicense -eq 1
 )
+$CanEditRegistry = & {
+    $testPath = 'HKCU:\Software\_RegistryWriteTest'
+    try {
+        New-Item -Path $testPath -Force -ErrorAction Stop | Out-Null
+        Remove-Item -Path $testPath -Force -ErrorAction SilentlyContinue
+        $true
+    } catch {
+        $false
+    }
+}
+if (-not $CanEditRegistry) {
+    Write-Warning "Registry editing is disabled by policy. Registry settings will be skipped."
+}
 if (-not $IsAdmin) {
     Write-Warning "The script is running without administrator privileges, so certain settings will be skipped."
 }
@@ -27,9 +39,11 @@ function Set-Link($TargetPath, $LinkPath) {
         $existing = Get-Item -LiteralPath $LinkPath -Force
         if ($existing.LinkType -ne 'SymbolicLink' -and
             $existing.LinkType -ne 'Junction') {
-            throw "refusing to replace real path at '$LinkPath'"
-        }
-        if ($existing.LinkType -eq 'SymbolicLink' -and
+            if ($CanSymlink) {
+                throw "refusing to replace real path at '$LinkPath'"
+            }
+            Backup-File $LinkPath
+        } elseif ($existing.LinkType -eq 'SymbolicLink' -and
             $existing.Target -eq $TargetPath) {
             return
         }
@@ -108,8 +122,8 @@ function Set-GitLocalConfig() {
         git config -f $gitLocalConfig gpg.format ssh
         git config -f $gitLocalConfig `
             gpg.ssh.allowedSignersFile $allowedSigners
-        "$gitEmail $keyLine" | Set-Content `
-            -LiteralPath $allowedSigners -Encoding utf8NoBOM
+        Backup-File $allowedSigners
+        [System.IO.File]::WriteAllText($allowedSigners, "$gitEmail $keyLine`n", [System.Text.UTF8Encoding]::new($false))
     }
 
     $sysRoot = $env:SystemRoot -replace '\\', '/'
@@ -310,6 +324,7 @@ function Set-PowerManagement() {
 }
 
 function Set-Keyboard() {
+    if (-not $CanEditRegistry) { return }
     # 0 = shortest, 3 = longest
     $desiredValue = 0
 
@@ -338,6 +353,7 @@ function Set-Keyboard() {
 }
 
 function Set-NoSoundScheme {
+    if (-not $CanEditRegistry) { return }
     $SoundSchemePath = "HKCU:\AppEvents\Schemes"
     $KeyName = "(Default)"
     $NoSoundValue = ".None"
@@ -408,6 +424,7 @@ function Set-EdgeSettings() {
 }
 
 function Disable-Copilot() {
+    if (-not $CanEditRegistry) { return }
     reg add "HKCU\Software\Microsoft\input\Settings" /v InsightsEnabled /t REG_DWORD /d 0 /f
     if ($IsAdmin) {
         reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v SettingsPageVisibility /t REG_SZ /d "hide:aicomponents;" /f
@@ -421,6 +438,7 @@ function Disable-Copilot() {
 }
 
 function Set-RegionalFormat() {
+    if (-not $CanEditRegistry) { return }
     Set-ItemProperty -Path "HKCU:\Control Panel\International" -Name sShortTime -Value HH:mm
     Set-ItemProperty -Path "HKCU:\Control Panel\International" -Name sTimeFormat -Value HH:mm:ss
     Set-ItemProperty -Path "HKCU:\Control Panel\International" -Name sShortDate -Value yyyy-MM-dd
@@ -429,6 +447,7 @@ function Set-RegionalFormat() {
 }
 
 function Set-ExplorerSettings() {
+    if (-not $CanEditRegistry) { return }
     REG ADD "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /V "ShowRecent" /T REG_DWORD /D 0 /F
     REG ADD "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /V "ShowFrequent" /T REG_DWORD /D 0 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V HideFileExt /T REG_dWORD /D 0 /F
@@ -446,7 +465,6 @@ function Set-ExplorerSettings() {
         REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /V HideRecentlyAddedApps /T REG_dWORD /D 1 /F
     }
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 2
-    Stop-Process -Name explorer -Force
 }
 
 function Disable-ConnectivityFeatures() {
@@ -456,6 +474,7 @@ function Disable-ConnectivityFeatures() {
 }
 
 function Set-ThemeSettings() {
+    if (-not $CanEditRegistry) { return }
     REG ADD "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" /V SystemUsesLightTheme /T REG_DWORD /D 0 /F
     REG ADD "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" /V AppsUseLightTheme /T REG_DWORD /D 0 /F
 }
@@ -466,6 +485,7 @@ function Set-StorageSettings() {
 }
 
 function Set-NotificationSettings() {
+    if (-not $CanEditRegistry) { return }
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings" /V NOC_GLOBAL_SETTING_ALLOW_NOTIFICATION_SOUND /T REG_dWORD /D 0 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings" /V NOC_GLOBAL_SETTING_BADGE_ENABLED /T REG_dWORD /D 1 /F
 }
@@ -481,6 +501,7 @@ function Enable-LocationAndTz() {
 }
 
 function Set-UIAnimations() {
+    if (-not $CanEditRegistry) { return }
     Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WindowAnimation" -Value 0
     Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Value 0
 }
@@ -505,6 +526,7 @@ function Register-NugetSource() {
 }
 
 function Set-LockScreenSettings() {
+    if (-not $CanEditRegistry) { return }
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "RotatingLockScreenEnabled" -Value 0 -Type DWord
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Type DWord
     $lockPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lock Screen"
@@ -514,6 +536,7 @@ function Set-LockScreenSettings() {
 }
 
 function Disable-ContentDelivery() {
+    if (-not $CanEditRegistry) { return }
     REG ADD "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 0 /f
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "ContentDeliveryAllowed" -Value 0 -Type DWord -Force
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "OemPreInstalledAppsEnabled" -Value 0 -Type DWord -Force
@@ -545,7 +568,8 @@ function Set-PowerShellProfile() {
     } else {
         $dir = Split-Path $defaultProfilePath
         if ($dir) { New-Item $dir -ItemType Directory -Force | Out-Null }
-        ". '$customProfilePath'" | Set-Content -LiteralPath $defaultProfilePath -Encoding utf8NoBOM
+        Backup-File $defaultProfilePath
+        [System.IO.File]::WriteAllText($defaultProfilePath, ". '$customProfilePath'`n", [System.Text.UTF8Encoding]::new($false))
     }
 }
 
@@ -576,6 +600,7 @@ function Enable-Virtualization() {
 }
 
 function Set-PrivacySettings() {
+    if (-not $CanEditRegistry) { return }
     REG ADD "HKCU\Software\Policies\Microsoft\Windows\CloudContent" /V DisableTailoredExperiencesWithDiagnosticData /T REG_dWORD /D 1 /F
     if ($IsAdmin) {
         REG ADD "HKLM\Software\Policies\Microsoft\Windows\System" /V AllowCrossDeviceClipboard /T REG_DWORD /D 0 /F
@@ -626,6 +651,15 @@ function Set-XdgPaths() {
         "XDG_STATE_HOME",
         (Join-Path $env:USERPROFILE ".local\state"),
         "User")
+}
+
+function Backup-File($Path) {
+    if (-not (Test-Path -LiteralPath $Path)) { return }
+    $ts = Get-Date -Format "yyyy-MM-dd HH-mm-ss"
+    $backupDir = Join-Path $HOME "Backups\Windows"
+    New-Item $backupDir -ItemType Directory -Force | Out-Null
+    $backupName = "$ts - $(Split-Path $Path -Leaf)"
+    Copy-Item -LiteralPath $Path -Destination (Join-Path $backupDir $backupName) -Force
 }
 
 function Backup-Registry() {

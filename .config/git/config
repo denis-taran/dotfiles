@@ -13,7 +13,6 @@
 	excludesfile = ~/.config/git/ignore
 	autocrlf = input
 	ignorecase = false
-    editor = code --wait
     symlinks = true
 [color]
 	ui = true

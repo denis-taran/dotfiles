@@ -292,6 +292,16 @@ if [[ "$_git_cfg_list" != *"user.signingkey="* ]]; then
     fi
 fi
 
+if command -v code &>/dev/null; then
+    run_as_user git config -f "$_git_cfg" core.editor "code --wait"
+elif command -v nvim &>/dev/null; then
+    run_as_user git config -f "$_git_cfg" core.editor "nvim"
+elif command -v vim &>/dev/null; then
+    run_as_user git config -f "$_git_cfg" core.editor "vim"
+else
+    run_as_user git config -f "$_git_cfg" core.editor "vi"
+fi
+
 if is_wsl; then
     run_as_user git config -f "$_git_cfg" core.sshCommand ssh.exe
     _wsl_appdata=$(

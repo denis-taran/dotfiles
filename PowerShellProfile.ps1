@@ -1,6 +1,14 @@
 Set-StrictMode -Version 3.0
 
 ###############################################################################
+# Environment
+###############################################################################
+
+if (Test-Path -LiteralPath (Join-Path $HOME ".env.ps1")) {
+    . (Join-Path $HOME ".env.ps1")
+}
+
+###############################################################################
 # Navigation
 ###############################################################################
 
@@ -136,6 +144,13 @@ function Get-KubeInfo {
     return "[${ctx}:${ns}]"
 }
 
+function Format-Colored {
+    param([string]$Text, [string]$ColorCode)
+    if ([string]::IsNullOrEmpty($Text)) { return "" }
+    $e = [char]27
+    return "$e[${ColorCode}m$Text$e[0m"
+}
+
 function prompt {
     $sshInfo = GetSshPrompt
     $gitInfo = Get-GitInfo
@@ -145,18 +160,19 @@ function prompt {
     $sigil = if ($principal.IsInRole(
         [Security.Principal.WindowsBuiltInRole]::Administrator)) `
             { '#' } else { '$' }
-    $loc = (Get-Location).Path -ireplace "^$([regex]::Escape($HOME))", '~'
-    $ssh = if ($sshInfo) {
-        "$($PSStyle.Foreground.BrightRed)$sshInfo$($PSStyle.Reset) "
-    } else { "" }
-    $git = if ($gitInfo) {
-        "$($PSStyle.Foreground.BrightBlue)$gitInfo$($PSStyle.Reset) "
-    } else { "" }
-    $kube = if ($kubeInfo) {
-        "$($PSStyle.Foreground.BrightCyan)$kubeInfo$($PSStyle.Reset) "
-    } else { "" }
-    $path = "$($PSStyle.Foreground.BrightGreen)$loc$($PSStyle.Reset)"
-    $user = "$($PSStyle.Foreground.BrightYellow)$sigil$($PSStyle.Reset)"
+    $rawPath = (Get-Location).Path
+    $homeNorm = $HOME.TrimEnd('\')
+    $cmp = [System.StringComparison]::OrdinalIgnoreCase
+    $atHome = $rawPath.StartsWith($homeNorm, $cmp) -and
+              ($rawPath.Length -eq $homeNorm.Length -or
+               $rawPath[$homeNorm.Length] -eq '\')
+    $loc = if ($atHome) { '~' + $rawPath.Substring($homeNorm.Length) } `
+           else { $rawPath }
+    $ssh = if ($sshInfo) { (Format-Colored $sshInfo "91") + " " } else { "" }
+    $git = if ($gitInfo) { (Format-Colored $gitInfo "94") + " " } else { "" }
+    $kube = if ($kubeInfo) { (Format-Colored $kubeInfo "96") + " " } else { "" }
+    $path = Format-Colored $loc "92"
+    $user = Format-Colored $sigil "93"
 
     return "$ssh$git$kube$path $user "
 }
