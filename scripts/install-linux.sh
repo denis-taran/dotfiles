@@ -180,6 +180,7 @@ if $_is_ubuntu && $_is_root; then
         "htop"
         "iproute2"
         "iptables"
+        "locales"
         "lsb-release"
         "neovim"
         "pandoc"
@@ -207,6 +208,10 @@ if $_is_ubuntu && $_is_root; then
 
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${packages[@]}"
     apt-get clean
+
+    locale-gen en_US.UTF-8
+    update-locale LANG=en_US.UTF-8
+
     sudo -u "$USERNAME" -H git lfs install
 
     snap list aws-cli >/dev/null 2>&1 || snap install aws-cli --classic

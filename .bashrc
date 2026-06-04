@@ -14,6 +14,10 @@ path_prepend() {
 path_prepend "$HOME/.local/bin"
 path_prepend "$HOME/Code/dotfiles/scripts"
 
+if grep -qi microsoft /proc/version 2>/dev/null; then
+    export PATH="/snap/bin:${PATH//:\/snap\/bin/}"
+fi
+
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
