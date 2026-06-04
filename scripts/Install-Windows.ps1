@@ -133,14 +133,15 @@ function Set-GitLocalConfig() {
 
 function Install-Apps() {
     $applications = @(
-        "AgileBits.1Password",
         "AgileBits.1Password.CLI",
+        "AgileBits.1Password",
         "ajeetdsouza.zoxide",
         "Amazon.AWSCLI",
-        "Microsoft.DotNet.SDK.10",
         "dotPDN.PaintDotNet",
         "Git.Git",
         "Microsoft.AzureCLI",
+        "Microsoft.Coreutils",
+        "Microsoft.DotNet.SDK.10",
         "Microsoft.PowerShell",
         "Microsoft.VisualStudioCode",
         "Neovim.Neovim",

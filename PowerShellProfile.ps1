@@ -20,15 +20,6 @@ if (Get-Command zoxide -ErrorAction SilentlyContinue) {
 # Common Aliases
 ###############################################################################
 
-function touch {
-    param([Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$fileName)
-    if (-not (Test-Path $fileName)) { 
-        New-Item -ItemType File  -Path $fileName -Force
-    }
-    else {
-        (Get-Item $fileName).LastWriteTime = Get-Date
-    }
-}
 
 if (Get-Command eza -ErrorAction SilentlyContinue) {
     function ll { eza -lh --color=always @args }
