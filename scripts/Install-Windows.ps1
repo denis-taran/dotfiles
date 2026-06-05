@@ -75,6 +75,7 @@ function Install-DotFiles() {
         Set-Link -LinkPath $vsSettings -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\vs\settings.json')
     }
 
+    Set-Link -LinkPath "$Env:APPDATA\Code\User\settings.json" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\Code\User\settings.json')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/attributes" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\attributes')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/ignore" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\ignore')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/config" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\config')
