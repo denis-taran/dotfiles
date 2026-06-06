@@ -225,3 +225,6 @@ command -v code >/dev/null 2>&1 && alias c='code'
 shopt -s globstar direxpand autocd checkwinsize
 
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
+
+# temporary workaround for Playwright on ubuntu 26.04
+export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
