@@ -166,6 +166,7 @@ if $_is_ubuntu && $_is_root; then
     update-ca-certificates
 
     packages=(
+        "aardvark-dns"
         "bash-completion"
         "bat"
         "bind9-dnsutils"
@@ -183,6 +184,7 @@ if $_is_ubuntu && $_is_root; then
         "locales"
         "lsb-release"
         "neovim"
+        "netavark"
         "pandoc"
         "passt"
         "pipx"
@@ -205,6 +207,11 @@ if $_is_ubuntu && $_is_root; then
         "zip"
         "zoxide"
     )
+
+    if ! is_wsl; then
+        packages=( "${packages[@]/aardvark-dns}" )
+        packages=( "${packages[@]/netavark}" )
+    fi
 
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${packages[@]}"
     apt-get clean
@@ -389,7 +396,7 @@ download_and_install_binary() {
     install -m 0755 "$dlfile" "$dest"
 }
 
-if $_is_ubuntu && $_is_root; then 
+if $_is_ubuntu && $_is_root; then
     _arch=$(dpkg --print-architecture)
     [[  "$_arch" == "amd64" || "$_arch" == "arm64" ]] || {
         echo "unsupported arch: $_arch" >&2
@@ -491,7 +498,7 @@ if $_is_ubuntu && $_is_root; then
     if [[ -f "$user_cfg" ]]; then
         tmp_merged=$(mktemp)
         sudo -u "$USERNAME" -H env "KUBECONFIG=${tmp_kind_cfg}:${user_cfg}" kubectl config view --flatten >"$tmp_merged"
-        install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_merged" "$user_cfg" 
+        install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_merged" "$user_cfg"
     else
         install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_kind_cfg" "$user_cfg"
     fi
