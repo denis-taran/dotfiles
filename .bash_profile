@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-if [[ -r "$HOME/.bashrc" ]]; then
-    source "$HOME/.bashrc"
+if [[ -r "$HOME/.profile" ]]; then
+    source "$HOME/.profile"
 fi

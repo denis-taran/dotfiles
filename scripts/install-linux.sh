@@ -241,6 +241,7 @@ fi
 declare -A links=(
     ["$SCRIPT_DIR/.bash_profile"]="$HOMEDIR/.bash_profile"
     ["$SCRIPT_DIR/.bashrc"]="$HOMEDIR/.bashrc"
+    ["$SCRIPT_DIR/.profile"]="$HOMEDIR/.profile"
     ["$SCRIPT_DIR/.config/git/config"]="$HOMEDIR/.config/git/config"
     ["$SCRIPT_DIR/.config/git/ignore"]="$HOMEDIR/.config/git/ignore"
     ["$SCRIPT_DIR/.config/git/attributes"]="$HOMEDIR/.config/git/attributes"

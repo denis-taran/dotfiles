@@ -72,7 +72,6 @@ unset _bashcomp
 if grep -qi microsoft /proc/version 2>/dev/null; then
     command -v ssh.exe >/dev/null 2>&1 && alias ssh='ssh.exe'
     command -v ssh-add.exe >/dev/null 2>&1 && alias ssh-add='ssh-add.exe'
-    command -v op.exe >/dev/null 2>&1 && alias op='op.exe'
 else
     if [[ -S "$HOME/.1password/agent.sock" ]]; then
         export SSH_AUTH_SOCK="$HOME/.1password/agent.sock"
@@ -200,10 +199,6 @@ _dotnet_bash_complete() {
 }
 
 complete -f -F _dotnet_bash_complete dotnet
-
-export DOTNET_ROOT="$HOME/.dotnet"
-path_prepend "$HOME/.dotnet/tools"
-path_prepend "$HOME/.dotnet"
 
 ###############################################################################
 # Editors
