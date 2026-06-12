@@ -464,6 +464,10 @@ if $_is_ubuntu && $_is_root; then
     echo "net.ipv4.ip_forward=1" >/etc/sysctl.d/99-ip-forward.conf
     sysctl -w net.ipv4.ip_forward=1
 
+    if is_wsl; then
+        systemctl mask tmp.mount
+    fi
+
     # runs kind as regular user, optionally injecting env vars
     _kind_as_user() {
         if is_wsl; then
