@@ -102,10 +102,13 @@ function Get-GitInfo {
     }
 
     $commit = git rev-parse --short HEAD 2>$null
-    if ($commit) {
-        return "[$branch@$commit]"
-    }
-    return ""
+    if (-not $commit) { return "" }
+    $dirty = ""
+    git diff --quiet 2>$null
+    if ($LASTEXITCODE -ne 0) { $dirty += "*" }
+    git diff --cached --quiet 2>$null
+    if ($LASTEXITCODE -ne 0) { $dirty += "+" }
+    return "[$branch@$commit$dirty]"
 }
 
 function GetSshPrompt {

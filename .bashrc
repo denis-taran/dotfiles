@@ -144,11 +144,14 @@ function clr {
 function git_prompt {
     local gdir="$1"
     [[ -z "$gdir" ]] && return
-    local branch commit
+    local branch commit dirty
     branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null)
     [[ -z "$branch" ]] && branch="DETACHED"
     commit=$(git rev-parse --short HEAD 2>/dev/null)
-    [[ -n "$commit" ]] && echo "[$branch@$commit] "
+    [[ -n "$commit" ]] || return
+    git diff --quiet 2>/dev/null || dirty="*"
+    git diff --cached --quiet 2>/dev/null || dirty+="+"
+    echo "[$branch@$commit$dirty] "
 }
 
 function kube_prompt {
