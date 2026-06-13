@@ -166,14 +166,12 @@ function kube_prompt {
 function set_prompt {
     local exit_status=$?
 
-    local gdir ip
+    local gdir
     gdir=$(git rev-parse --absolute-git-dir 2>/dev/null)
-    [[ -n "$SSH_CONNECTION" ]] && read -r _ _ ip _ <<< "$SSH_CONNECTION"
-
     local git kube ssh uchar
     git=$(git_prompt "$gdir")
     kube=$(kube_prompt)
-    [[ -n "$ip" ]] && ssh="[$ip] "
+    [[ -n "$SSH_CONNECTION" ]] && ssh="[${HOSTNAME%%.*}] "
     [[ $EUID -eq 0 ]] && uchar="#" || uchar="$"
 
     local pwd_str="${PWD/#$HOME/\~}"

@@ -113,12 +113,7 @@ function GetSshPrompt {
         return ""
     }
 
-    $parts = $env:SSH_CONNECTION -split ' ', 2
-    if ($parts[0]) {
-        return "[$($parts[0])]"
-    }
-
-    return ""
+    return "[$env:COMPUTERNAME]"
 }
 
 function Get-KubeInfo {
