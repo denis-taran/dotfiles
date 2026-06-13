@@ -138,6 +138,7 @@ function Format-Colored {
 }
 
 function prompt {
+    $lastSuccess = $?
     $sshInfo = GetSshPrompt
     $gitInfo = Get-GitInfo
     $kubeInfo = Get-KubeInfo
@@ -158,7 +159,8 @@ function prompt {
     $git = if ($gitInfo) { (Format-Colored $gitInfo "94") + " " } else { "" }
     $kube = if ($kubeInfo) { (Format-Colored $kubeInfo "96") + " " } else { "" }
     $path = Format-Colored $loc "92"
-    $user = Format-Colored $sigil "93"
+    $sigilColor = if ($lastSuccess) { "93" } else { "91" }
+    $user = Format-Colored $sigil $sigilColor
 
     return "$ssh$git$kube$path $user "
 }

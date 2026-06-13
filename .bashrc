@@ -164,25 +164,26 @@ function kube_prompt {
 }
 
 function set_prompt {
-    local exit_status=$?
+    local exit_status=${__prompt_exit:-0}
 
     local gdir
     gdir=$(git rev-parse --absolute-git-dir 2>/dev/null)
-    local git kube ssh uchar
+    local git kube ssh uchar uchar_color
     git=$(git_prompt "$gdir")
     kube=$(kube_prompt)
     [[ -n "$SSH_CONNECTION" ]] && ssh="[${USER}@${HOSTNAME%%.*}] "
     [[ $EUID -eq 0 ]] && uchar="#" || uchar="$"
+    [[ $exit_status -ne 0 ]] && uchar_color="91m" || uchar_color="93m"
 
     local pwd_str="${PWD/#$HOME/\~}"
     PS1="$(clr "$ssh" "91m")$(clr "$git" "94m")"
-    PS1+="$(clr "$kube" "96m")$(clr "$pwd_str" "92m") $(clr "$uchar" "93m") "
+    PS1+="$(clr "$kube" "96m")$(clr "$pwd_str" "92m") $(clr "$uchar" "$uchar_color") "
 
     return "$exit_status"
 }
 
 PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;}; }"
-PROMPT_COMMAND+="history -a; history -n; set_prompt"
+PROMPT_COMMAND+='__prompt_exit=$?; history -a; history -n; set_prompt'
 
 ###############################################################################
 # .NET
