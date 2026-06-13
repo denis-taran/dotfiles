@@ -113,7 +113,7 @@ function GetSshPrompt {
         return ""
     }
 
-    return "[$env:COMPUTERNAME]"
+    return "[$env:USERNAME@$env:COMPUTERNAME]"
 }
 
 function Get-KubeInfo {
