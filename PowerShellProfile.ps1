@@ -8,6 +8,8 @@ if (Test-Path -LiteralPath (Join-Path $HOME ".env.ps1")) {
     . (Join-Path $HOME ".env.ps1")
 }
 
+$env:GIT_OPTIONAL_LOCKS = "0"
+
 ###############################################################################
 # Navigation
 ###############################################################################
@@ -49,12 +51,12 @@ if ($neovimCmd) {
 }
 
 ###############################################################################
-# Kubernetes & Docker/Podman 
+# Kubernetes & Docker/Podman
 ###############################################################################
 
 $env:DOCKER_CLI_HINTS = "false"
 
-if (Get-Command kubectl -ErrorAction SilentlyContinue) { 
+if (Get-Command kubectl -ErrorAction SilentlyContinue) {
     Set-Alias -Name k  -Value kubectl
 }
 
@@ -76,7 +78,7 @@ function kube_info {
 }
 
 function disable_kube_info {
-    Remove-Item Env:DISPLAY_KUBE_INFO -ErrorAction SilentlyContinue 
+    Remove-Item Env:DISPLAY_KUBE_INFO -ErrorAction SilentlyContinue
 }
 
 ###############################################################################
@@ -93,22 +95,28 @@ if (Test-Path $opPlugins) { . $opPlugins }
 function Get-GitInfo {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return "" }
 
-    git rev-parse --is-inside-work-tree *> $null
+    $status = git status --porcelain=v2 --branch 2>$null
     if ($LASTEXITCODE -ne 0) { return "" }
 
-    $branch = git symbolic-ref --quiet --short HEAD 2>$null
-    if (-not $branch) {
-        $branch = "DETACHED"
-    }
-
-    $commit = git rev-parse --short HEAD 2>$null
-    if (-not $commit) { return "" }
+    $branch = "DETACHED"
+    $oid = ""
     $dirty = ""
-    git diff --quiet 2>$null
-    if ($LASTEXITCODE -ne 0) { $dirty += "*" }
-    git diff --cached --quiet 2>$null
-    if ($LASTEXITCODE -ne 0) { $dirty += "+" }
-    return "[$branch@$commit$dirty]"
+    $staged = ""
+    foreach ($line in $status) {
+        if ($line.StartsWith("# branch.head ")) {
+            $branch = $line.Substring(14)
+        }
+        elseif ($line.StartsWith("# branch.oid ")) {
+            $oid = $line.Substring(13)
+        }
+        elseif ($line.StartsWith("1 ") -or $line.StartsWith("2 ")) {
+            if ($line[2] -ne '.') { $staged = "+" }
+            if ($line[3] -ne '.') { $dirty = "*" }
+        }
+    }
+    if (-not $oid -or $oid -eq "(initial)") { return "" }
+    if ($branch -eq "(detached)") { $branch = "DETACHED" }
+    return "[$branch@$($oid.Substring(0, 7))$dirty$staged]"
 }
 
 function GetSshPrompt {
@@ -175,13 +183,13 @@ function prompt {
 Set-PSReadLineOption -EditMode Emacs
 Set-PSReadLineOption -BellStyle None
 Set-PSReadLineOption -HistoryNoDuplicates:$true
-Set-PSReadLineOption -HistorySearchCursorMovesToEnd:$true 
+Set-PSReadLineOption -HistorySearchCursorMovesToEnd:$true
 
 ###############################################################################
 # .NET
 ###############################################################################
 
-# copied from official Microsoft dotnet powershell documentation 
+# copied from official Microsoft dotnet powershell documentation
 Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
         dotnet complete --position $cursorPosition "$commandAst" |

@@ -23,6 +23,8 @@ export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
 
+export GIT_OPTIONAL_LOCKS=0
+
 [[ $- != *i* ]] && return
 
 ###############################################################################
@@ -136,22 +138,27 @@ fi
 ###############################################################################
 
 function clr {
-    local text="$1"
-    local color_code="$2"
-    [[ -n "$text" ]] && echo -e "\[\033[0;$color_code\]$text\[\033[0m\]"
+    local -n _out="$1"
+    [[ -n "$2" ]] && _out+="\[\033[0;$3\]$2\[\033[0m\]"
 }
 
 function git_prompt {
-    local gdir="$1"
-    [[ -z "$gdir" ]] && return
-    local branch commit dirty
-    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null)
-    [[ -z "$branch" ]] && branch="DETACHED"
-    commit=$(git rev-parse --short HEAD 2>/dev/null)
-    [[ -n "$commit" ]] || return
-    git diff --quiet 2>/dev/null || dirty="*"
-    git diff --cached --quiet 2>/dev/null || dirty+="+"
-    echo "[$branch@$commit$dirty] "
+    local status
+    status=$(git status --porcelain=v2 --branch 2>/dev/null) || return
+    local line branch oid dirty staged
+    while IFS= read -r line; do
+        case $line in
+            '# branch.head '*) branch=${line#'# branch.head '} ;;
+            '# branch.oid '*) oid=${line#'# branch.oid '} ;;
+            '1 '* | '2 '*)
+                [[ ${line:2:1} != . ]] && staged="+"
+                [[ ${line:3:1} != . ]] && dirty="*"
+                ;;
+        esac
+    done <<<"$status"
+    [[ -n "$oid" && "$oid" != "(initial)" ]] || return
+    [[ "$branch" == "(detached)" ]] && branch="DETACHED"
+    echo "[$branch@${oid:0:7}$dirty$staged] "
 }
 
 function kube_prompt {
@@ -169,18 +176,22 @@ function kube_prompt {
 function set_prompt {
     local exit_status=${__prompt_exit:-0}
 
-    local gdir
-    gdir=$(git rev-parse --absolute-git-dir 2>/dev/null)
     local git kube ssh uchar uchar_color
-    git=$(git_prompt "$gdir")
+    git=$(git_prompt)
     kube=$(kube_prompt)
     [[ -n "$SSH_CONNECTION" ]] && ssh="[${USER}@${HOSTNAME%%.*}] "
     [[ $EUID -eq 0 ]] && uchar="#" || uchar="$"
     [[ $exit_status -ne 0 ]] && uchar_color="91m" || uchar_color="93m"
 
     local pwd_str="${PWD/#$HOME/\~}"
-    PS1="$(clr "$ssh" "91m")$(clr "$git" "94m")"
-    PS1+="$(clr "$kube" "96m")$(clr "$pwd_str" "92m") $(clr "$uchar" "$uchar_color") "
+    PS1=""
+    clr PS1 "$ssh" "91m"
+    clr PS1 "$git" "94m"
+    clr PS1 "$kube" "96m"
+    clr PS1 "$pwd_str" "92m"
+    PS1+=" "
+    clr PS1 "$uchar" "$uchar_color"
+    PS1+=" "
 
     return "$exit_status"
 }
