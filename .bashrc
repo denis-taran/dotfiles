@@ -14,7 +14,9 @@ path_prepend() {
 path_prepend "$HOME/.local/bin"
 path_prepend "$HOME/Code/dotfiles/scripts"
 
-if grep -qi microsoft /proc/version 2>/dev/null; then
+grep -qi microsoft /proc/version 2>/dev/null && _IS_WSL=1
+
+if [[ -n "$_IS_WSL" ]]; then
     export PATH="/snap/bin:${PATH//:\/snap\/bin/}"
 fi
 
@@ -35,7 +37,7 @@ alias g='git'
 alias grep='grep --color=auto'
 alias showpath='printf "%s\n" "$PATH" | tr ":" "\n"'
 
-if grep -qi microsoft /proc/version 2>/dev/null; then
+if [[ -n "$_IS_WSL" ]]; then
     alias pbcopy='sed "s/\x1B\[[0-9;]*[mK]//g" | clip.exe'
     alias pbpaste='powershell.exe -noprofile -command "Get-Clipboard"'
 elif command -v wl-copy >/dev/null 2>&1; then
@@ -71,7 +73,7 @@ unset _bashcomp
 
 # TODO: check plugins: https://www.1password.dev/cli/shell-plugins
 
-if grep -qi microsoft /proc/version 2>/dev/null; then
+if [[ -n "$_IS_WSL" ]]; then
     command -v ssh.exe >/dev/null 2>&1 && alias ssh='ssh.exe'
     command -v ssh-add.exe >/dev/null 2>&1 && alias ssh-add='ssh-add.exe'
 else
@@ -164,7 +166,7 @@ function git_prompt {
     read -r head < "$gd/HEAD"
 
     if [[ "$head" != ref:* ]]; then
-        echo "[DETACHED@${head:0:7}] "
+        _git_prompt_out="[DETACHED@${head:0:7}] "
         return
     fi
 
@@ -177,7 +179,16 @@ function git_prompt {
         done < "$gd/packed-refs"
     fi
 
-    [[ -n "$oid" ]] && echo "[$branch@${oid:0:7}] "
+    local state=""
+    if [[ -d "$gd/rebase-merge" || -d "$gd/rebase-apply" ]]; then
+        state="|REBASE"
+    elif [[ -f "$gd/MERGE_HEAD" ]]; then
+        state="|MERGE"
+    elif [[ -f "$gd/CHERRY_PICK_HEAD" ]]; then
+        state="|CHERRY"
+    fi
+
+    [[ -n "$oid" ]] && _git_prompt_out="[$branch@${oid:0:7}$state] "
 }
 
 function kube_prompt {
@@ -189,15 +200,17 @@ function kube_prompt {
     ns=$(kubectl config view --minify \
         --output 'jsonpath={..namespace}' 2>/dev/null)
     [[ -z "$ns" ]] && ns="default"
-    echo "[$ctx:$ns] "
+    _kube_prompt_out="[$ctx:$ns] "
 }
 
 function set_prompt {
     local exit_status=${__prompt_exit:-0}
 
-    local git kube ssh uchar uchar_color
-    git=$(git_prompt)
-    kube=$(kube_prompt)
+    local ssh uchar uchar_color
+    _git_prompt_out=""
+    git_prompt
+    _kube_prompt_out=""
+    kube_prompt
     [[ -n "$SSH_CONNECTION" ]] && ssh="[${USER}@${HOSTNAME%%.*}] "
     [[ $EUID -eq 0 ]] && uchar="#" || uchar="$"
     [[ $exit_status -ne 0 ]] && uchar_color="91m" || uchar_color="93m"
@@ -205,8 +218,8 @@ function set_prompt {
     local pwd_str="${PWD/#$HOME/\~}"
     PS1=""
     clr PS1 "$ssh" "91m"
-    clr PS1 "$git" "94m"
-    clr PS1 "$kube" "96m"
+    clr PS1 "$_git_prompt_out" "94m"
+    clr PS1 "$_kube_prompt_out" "96m"
     clr PS1 "$pwd_str" "92m"
     PS1+=" "
     clr PS1 "$uchar" "$uchar_color"
@@ -216,7 +229,7 @@ function set_prompt {
 }
 
 PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;}; }"
-PROMPT_COMMAND+='__prompt_exit=$?; history -a; history -n; set_prompt'
+PROMPT_COMMAND+='__prompt_exit=$?; history -a; set_prompt'
 
 ###############################################################################
 # .NET

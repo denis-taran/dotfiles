@@ -132,7 +132,18 @@ function Get-GitInfo {
     }
 
     if (-not $oid) { return "" }
-    return "[$branch@$($oid.Substring(0, 7))]"
+
+    $state = ""
+    if ([IO.Directory]::Exists([IO.Path]::Combine($gitDir, "rebase-merge")) -or
+        [IO.Directory]::Exists([IO.Path]::Combine($gitDir, "rebase-apply"))) {
+        $state = "|REBASE"
+    } elseif ([IO.File]::Exists([IO.Path]::Combine($gitDir, "MERGE_HEAD"))) {
+        $state = "|MERGE"
+    } elseif ([IO.File]::Exists([IO.Path]::Combine($gitDir, "CHERRY_PICK_HEAD"))) {
+        $state = "|CHERRY"
+    }
+
+    return "[$branch@$($oid.Substring(0, 7))$state]"
 }
 
 function GetSshPrompt {
@@ -164,16 +175,16 @@ function Format-Colored {
     return "$e[${ColorCode}m$Text$e[0m"
 }
 
+$_sigil = if (([Security.Principal.WindowsPrincipal](
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) `
+    { '#' } else { '$' }
+
 function prompt {
     $lastSuccess = $?
     $sshInfo = GetSshPrompt
     $gitInfo = Get-GitInfo
     $kubeInfo = Get-KubeInfo
-    $principal = [Security.Principal.WindowsPrincipal](
-        [Security.Principal.WindowsIdentity]::GetCurrent())
-    $sigil = if ($principal.IsInRole(
-        [Security.Principal.WindowsBuiltInRole]::Administrator)) `
-            { '#' } else { '$' }
     $rawPath = (Get-Location).Path
     $homeNorm = $HOME.TrimEnd('\')
     $cmp = [System.StringComparison]::OrdinalIgnoreCase
@@ -187,7 +198,7 @@ function prompt {
     $kube = if ($kubeInfo) { (Format-Colored $kubeInfo "96") + " " } else { "" }
     $path = Format-Colored $loc "92"
     $sigilColor = if ($lastSuccess) { "93" } else { "91" }
-    $user = Format-Colored $sigil $sigilColor
+    $user = Format-Colored $global:_sigil $sigilColor
 
     return "$ssh$git$kube$path $user "
 }
