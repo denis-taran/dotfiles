@@ -143,22 +143,41 @@ function clr {
 }
 
 function git_prompt {
-    local status
-    status=$(git status --porcelain=v2 --branch 2>/dev/null) || return
-    local line branch oid dirty staged
-    while IFS= read -r line; do
-        case $line in
-            '# branch.head '*) branch=${line#'# branch.head '} ;;
-            '# branch.oid '*) oid=${line#'# branch.oid '} ;;
-            '1 '* | '2 '*)
-                [[ ${line:2:1} != . ]] && staged="+"
-                [[ ${line:3:1} != . ]] && dirty="*"
-                ;;
-        esac
-    done <<<"$status"
-    [[ -n "$oid" && "$oid" != "(initial)" ]] || return
-    [[ "$branch" == "(detached)" ]] && branch="DETACHED"
-    echo "[$branch@${oid:0:7}$dirty$staged] "
+    local d="$PWD" gd=""
+
+    while [[ -n "$d" ]]; do
+        if [[ -d "$d/.git" ]]; then gd="$d/.git"; break; fi
+        if [[ -f "$d/.git" ]]; then
+            read -r gd < "$d/.git"
+            if [[ "$gd" == "gitdir: "* ]]; then
+                gd="${gd#gitdir: }"
+                [[ "$gd" != /* ]] && gd="$d/$gd"
+            fi
+            break
+        fi
+        [[ "$d" == "/" ]] && break
+        d="${d%/*}"
+    done
+    [[ -z "$gd" || ! -f "$gd/HEAD" ]] && return
+
+    local head line oid=""
+    read -r head < "$gd/HEAD"
+
+    if [[ "$head" != ref:* ]]; then
+        echo "[DETACHED@${head:0:7}] "
+        return
+    fi
+
+    local branch="${head#ref: refs/heads/}"
+    if [[ -f "$gd/refs/heads/$branch" ]]; then
+        read -r oid < "$gd/refs/heads/$branch"
+    elif [[ -f "$gd/packed-refs" ]]; then
+        while read -r line; do
+            [[ "$line" == *" refs/heads/$branch" ]] && oid="$line" && break
+        done < "$gd/packed-refs"
+    fi
+
+    [[ -n "$oid" ]] && echo "[$branch@${oid:0:7}] "
 }
 
 function kube_prompt {

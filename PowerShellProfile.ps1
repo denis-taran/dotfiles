@@ -93,30 +93,46 @@ if (Test-Path $opPlugins) { . $opPlugins }
 ###############################################################################
 
 function Get-GitInfo {
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return "" }
-
-    $status = git status --porcelain=v2 --branch 2>$null
-    if ($LASTEXITCODE -ne 0) { return "" }
-
-    $branch = "DETACHED"
-    $oid = ""
-    $dirty = ""
-    $staged = ""
-    foreach ($line in $status) {
-        if ($line.StartsWith("# branch.head ")) {
-            $branch = $line.Substring(14)
-        }
-        elseif ($line.StartsWith("# branch.oid ")) {
-            $oid = $line.Substring(13)
-        }
-        elseif ($line.StartsWith("1 ") -or $line.StartsWith("2 ")) {
-            if ($line[2] -ne '.') { $staged = "+" }
-            if ($line[3] -ne '.') { $dirty = "*" }
+    $gitDir = $null
+    for ($d = $PWD.Path; $d; $d = [IO.Path]::GetDirectoryName($d)) {
+        $g = [IO.Path]::Combine($d, ".git")
+        if ([IO.Directory]::Exists($g)) { $gitDir = $g; break }
+        if ([IO.File]::Exists($g)) {
+            $ref = [IO.File]::ReadAllText($g).Trim()
+            if ($ref.StartsWith("gitdir: ")) {
+                $gitDir = [IO.Path]::GetFullPath([IO.Path]::Combine($d, $ref.Substring(8)))
+            }
+            break
         }
     }
-    if (-not $oid -or $oid -eq "(initial)") { return "" }
-    if ($branch -eq "(detached)") { $branch = "DETACHED" }
-    return "[$branch@$($oid.Substring(0, 7))$dirty$staged]"
+    if (-not $gitDir) { return "" }
+
+    $headPath = [IO.Path]::Combine($gitDir, "HEAD")
+    if (-not [IO.File]::Exists($headPath)) { return "" }
+    $head = [IO.File]::ReadAllText($headPath).Trim()
+
+    if (-not $head.StartsWith("ref: refs/heads/")) {
+        return "[DETACHED@$($head.Substring(0, [Math]::Min(7, $head.Length)))]"
+    }
+
+    $branch = $head.Substring(16)
+    $oid = ""
+
+    $refPath = [IO.Path]::Combine($gitDir, "refs", "heads", $branch)
+    if ([IO.File]::Exists($refPath)) {
+        $oid = [IO.File]::ReadAllText($refPath).Trim()
+    } else {
+        $packedPath = [IO.Path]::Combine($gitDir, "packed-refs")
+        if ([IO.File]::Exists($packedPath)) {
+            $suffix = " refs/heads/$branch"
+            foreach ($line in [IO.File]::ReadAllLines($packedPath)) {
+                if ($line.EndsWith($suffix)) { $oid = $line; break }
+            }
+        }
+    }
+
+    if (-not $oid) { return "" }
+    return "[$branch@$($oid.Substring(0, 7))]"
 }
 
 function GetSshPrompt {
