@@ -34,6 +34,9 @@ export GIT_OPTIONAL_LOCKS=0
 ###############################################################################
 
 alias g='git'
+alias gc='git commit'
+alias gcm='git commit -m'
+alias gwip='git add -A && git commit -m wip'
 alias grep='grep --color=auto'
 alias showpath='printf "%s\n" "$PATH" | tr ":" "\n"'
 

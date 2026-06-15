@@ -37,6 +37,9 @@ function pbpaste { Get-Clipboard }
 function showpath { $env:PATH -split [IO.Path]::PathSeparator }
 
 Set-Alias -Name g -Value git
+function gc { git commit @args }
+function gcm { git commit -m @args }
+function gwip { git add -A; git commit -m wip }
 
 if (Get-Command code -ErrorAction SilentlyContinue) {
     Set-Alias -Name c -Value code
