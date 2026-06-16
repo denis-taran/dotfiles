@@ -118,14 +118,20 @@ function Get-GitInfo {
         return "[DETACHED@$($head.Substring(0, [Math]::Min(7, $head.Length)))]"
     }
 
+    $commonGitDir = $gitDir
+    $commondirPath = [IO.Path]::Combine($gitDir, "commondir")
+    if ([IO.File]::Exists($commondirPath)) {
+        $commonGitDir = [IO.Path]::GetFullPath([IO.Path]::Combine($gitDir, [IO.File]::ReadAllText($commondirPath).Trim()))
+    }
+
     $branch = $head.Substring(16)
     $oid = ""
 
-    $refPath = [IO.Path]::Combine($gitDir, "refs", "heads", $branch)
+    $refPath = [IO.Path]::Combine($commonGitDir, "refs", "heads", $branch)
     if ([IO.File]::Exists($refPath)) {
         $oid = [IO.File]::ReadAllText($refPath).Trim()
     } else {
-        $packedPath = [IO.Path]::Combine($gitDir, "packed-refs")
+        $packedPath = [IO.Path]::Combine($commonGitDir, "packed-refs")
         if ([IO.File]::Exists($packedPath)) {
             $suffix = " refs/heads/$branch"
             foreach ($line in [IO.File]::ReadAllLines($packedPath)) {

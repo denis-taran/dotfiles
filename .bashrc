@@ -173,13 +173,19 @@ function git_prompt {
         return
     fi
 
+    local common_gd="$gd"
+    if [[ -f "$gd/commondir" ]]; then
+        read -r common_gd < "$gd/commondir"
+        [[ "$common_gd" != /* ]] && common_gd="$gd/$common_gd"
+    fi
+
     local branch="${head#ref: refs/heads/}"
-    if [[ -f "$gd/refs/heads/$branch" ]]; then
-        read -r oid < "$gd/refs/heads/$branch"
-    elif [[ -f "$gd/packed-refs" ]]; then
+    if [[ -f "$common_gd/refs/heads/$branch" ]]; then
+        read -r oid < "$common_gd/refs/heads/$branch"
+    elif [[ -f "$common_gd/packed-refs" ]]; then
         while read -r line; do
             [[ "$line" == *" refs/heads/$branch" ]] && oid="$line" && break
-        done < "$gd/packed-refs"
+        done < "$common_gd/packed-refs"
     fi
 
     local state=""
