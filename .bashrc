@@ -113,6 +113,7 @@ alias k='kubectl'
 
 if command -v podman >/dev/null 2>&1; then
     export KIND_EXPERIMENTAL_PROVIDER=podman
+    export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/podman/podman.sock"
     alias d='podman'
 elif command -v docker >/dev/null 2>&1; then
     export KIND_EXPERIMENTAL_PROVIDER=docker
@@ -201,7 +202,14 @@ function git_prompt {
         state="|CHERRY"
     fi
 
-    [[ -n "$oid" ]] && _git_prompt_out="[$branch@${oid:0:7}$state] "
+    if (( ${#branch} > 30 )); then
+        branch="${branch:0:14}…${branch: -15}"
+    fi
+    if [[ -n "$oid" ]]; then
+        _git_prompt_out="[$branch@${oid:0:7}$state] "
+    else
+        _git_prompt_out="[$branch$state] "
+    fi
 }
 
 function kube_prompt {

@@ -236,6 +236,14 @@ if $_is_ubuntu && $_is_root; then
     if ! is_wsl; then
         loginctl enable-linger "$USERNAME"
     fi
+
+    # enable socket-activated podman API so commands work immediately
+    if [[ -f /usr/lib/systemd/user/podman.socket ]]; then
+        run_as_user mkdir -p "$HOMEDIR/.config/systemd/user/sockets.target.wants"
+        create_link /usr/lib/systemd/user/podman.socket \
+            "$HOMEDIR/.config/systemd/user/sockets.target.wants/podman.socket" \
+            "$USERNAME"
+    fi
 fi
 
 declare -A links=(
@@ -466,6 +474,22 @@ if $_is_ubuntu && $_is_root; then
 
     if is_wsl; then
         systemctl mask tmp.mount
+
+        # rootless podman needs / as a shared mount; WSL2 defaults to private
+        cat >/etc/systemd/system/wsl-rshared.service <<'UNIT'
+[Unit]
+Description=Make / a shared mount for rootless containers
+DefaultDependencies=no
+Before=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/mount --make-rshared /
+
+[Install]
+WantedBy=local-fs.target
+UNIT
+        systemctl enable wsl-rshared.service
     fi
 
     # runs kind as regular user, optionally injecting env vars

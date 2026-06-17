@@ -30,6 +30,12 @@ if (Get-Command eza -ErrorAction SilentlyContinue) {
     function tree { eza --tree --color=always @args }
 }
 
+if (-not (Get-Command touch -ErrorAction SilentlyContinue)) {
+    function touch { foreach ($f in $args) {
+        if (Test-Path $f) { (Get-Item $f).LastWriteTime = Get-Date }
+        else { New-Item $f | Out-Null }
+    }}
+}
 function which { (Get-Command $args[0] -ErrorAction SilentlyContinue).Source }
 function open { Start-Process $args[0] }
 function pbcopy { $input | Set-Clipboard }
@@ -144,8 +150,6 @@ function Get-GitInfo {
         }
     }
 
-    if (-not $oid) { return "" }
-
     $state = ""
     if ([IO.Directory]::Exists([IO.Path]::Combine($gitDir, "rebase-merge")) -or
         [IO.Directory]::Exists([IO.Path]::Combine($gitDir, "rebase-apply"))) {
@@ -156,7 +160,14 @@ function Get-GitInfo {
         $state = "|CHERRY"
     }
 
-    return "[$branch@$($oid.Substring(0, 7))$state]"
+    if ($branch.Length -gt 30) {
+        $branch = $branch.Substring(0, 14) + [char]0x2026 + $branch.Substring($branch.Length - 15)
+    }
+    if ($oid) {
+        return "[$branch@$($oid.Substring(0, 7))$state]"
+    } else {
+        return "[$branch$state]"
+    }
 }
 
 function GetSshPrompt {
