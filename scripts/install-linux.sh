@@ -175,6 +175,7 @@ if $_is_ubuntu && $_is_root; then
         "eza"
         "fd-find"
         "fzf"
+        "git-delta"
         "gh"
         "git-lfs"
         "git"
