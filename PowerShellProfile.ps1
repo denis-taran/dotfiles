@@ -40,6 +40,10 @@ Set-Alias -Name g -Value git
 function gc { git commit @args }
 function gcm { git commit -m @args }
 function gwip { git add -A; git commit -m wip }
+function gs { git status @args }
+function gd { git diff @args }
+function gl { git log --oneline -20 @args }
+function gp { git push @args }
 
 if (Get-Command code -ErrorAction SilentlyContinue) {
     Set-Alias -Name c -Value code

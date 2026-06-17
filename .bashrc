@@ -37,6 +37,10 @@ alias g='git'
 alias gc='git commit'
 alias gcm='git commit -m'
 alias gwip='git add -A && git commit -m wip'
+alias gs='git status'
+alias gd='git diff'
+alias gl='git log --oneline -20'
+alias gp='git push'
 alias grep='grep --color=auto'
 alias showpath='printf "%s\n" "$PATH" | tr ":" "\n"'
 
@@ -56,7 +60,7 @@ if command -v eza >/dev/null 2>&1; then
 fi
 
 ###############################################################################
-# Bash Completion
+# Bash Completions
 ###############################################################################
 
 for _bashcomp in \
@@ -273,7 +277,11 @@ command -v code >/dev/null 2>&1 && alias c='code'
 
 shopt -s globstar direxpand autocd checkwinsize
 
+command -v bat >/dev/null 2>&1 && export MANPAGER="bat -l man -p"
+
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
+
+bind '"\eOP": "text-search\n"'
 
 # temporary workaround for Playwright on ubuntu 26.04
 export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
