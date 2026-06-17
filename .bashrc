@@ -113,7 +113,9 @@ alias k='kubectl'
 
 if command -v podman >/dev/null 2>&1; then
     export KIND_EXPERIMENTAL_PROVIDER=podman
-    export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/podman/podman.sock"
+    if [ -S "${XDG_RUNTIME_DIR:-}/podman/podman.sock" ]; then
+        export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/podman/podman.sock"
+    fi
     alias d='podman'
 elif command -v docker >/dev/null 2>&1; then
     export KIND_EXPERIMENTAL_PROVIDER=docker

@@ -1,4 +1,5 @@
 .config/*
+!.config/Code/
 !.config/git/
 .config/git/local
 .config/git/allowed_signers

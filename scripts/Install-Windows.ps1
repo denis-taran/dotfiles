@@ -129,7 +129,9 @@ function Set-GitLocalConfig() {
 
     $sysRoot = $env:SystemRoot -replace '\\', '/'
     git config -f $gitLocalConfig core.sshCommand "$sysRoot/System32/OpenSSH/ssh.exe"
-    git config -f $gitLocalConfig gpg.ssh.program $opSshSign
+    if (Test-Path $opSshSign) {
+        git config -f $gitLocalConfig gpg.ssh.program $opSshSign
+    }
 }
 
 function Install-Apps() {
