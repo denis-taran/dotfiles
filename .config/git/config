@@ -1,5 +1,7 @@
 [include]
     path = ~/.config/git/local
+[commit]
+    gpgsign = false
 [pull]
     rebase = true
 [branch]
@@ -14,13 +16,21 @@
 	autocrlf = input
 	ignorecase = false
     symlinks = true
-    pager = delta
-[interactive]
-    diffFilter = delta --color-only
-[delta]
-    line-numbers = true
-    navigate = true
-    dark = true
+[color]
+	ui = true
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22
+[color "diff"]
+	meta = 11
+	frag = magenta bold
+	commit = yellow bold
+	old = red bold
+	new = green bold
+	whitespace = red reverse
+	func = 146 bold
 [init]
 	defaultBranch = main
 [fetch]
@@ -44,3 +54,10 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
+
+[includeIf "gitdir:~/Code/autocomplete/"]
+	path = ~/Code/dotfiles/.config/git/sign-on
+[includeIf "gitdir:~/Code/unobtrusive-validation/"]
+	path = ~/Code/dotfiles/.config/git/sign-on
+[includeIf "gitdir:~/Code/dotfiles/"]
+	path = ~/Code/dotfiles/.config/git/sign-on
