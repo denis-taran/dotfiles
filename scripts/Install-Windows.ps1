@@ -39,9 +39,6 @@ function Set-Link($TargetPath, $LinkPath) {
         $existing = Get-Item -LiteralPath $LinkPath -Force
         if ($existing.LinkType -ne 'SymbolicLink' -and
             $existing.LinkType -ne 'Junction') {
-            if ($CanSymlink) {
-                throw "refusing to replace real path at '$LinkPath'"
-            }
             Backup-File $LinkPath
         } elseif ($existing.LinkType -eq 'SymbolicLink' -and
             $existing.Target -eq $TargetPath) {
