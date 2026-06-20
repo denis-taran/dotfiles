@@ -1,7 +1,7 @@
 [include]
     path = ~/.config/git/local
 [commit]
-    gpgsign = false
+    gpgsign = true
 [pull]
     rebase = true
 [branch]
@@ -54,10 +54,3 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
-
-[includeIf "gitdir:~/Code/autocomplete/"]
-	path = ~/Code/dotfiles/.config/git/sign-on
-[includeIf "gitdir:~/Code/unobtrusive-validation/"]
-	path = ~/Code/dotfiles/.config/git/sign-on
-[includeIf "gitdir:~/Code/dotfiles/"]
-	path = ~/Code/dotfiles/.config/git/sign-on

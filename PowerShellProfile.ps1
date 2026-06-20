@@ -49,7 +49,11 @@ function gwip { git add -A; git commit -m wip }
 function gs { git status @args }
 function gd { git diff @args }
 function gl { git log --oneline -20 @args }
+function gds { git diff --staged @args }
 function gp { git push @args }
+function gpf { git push --force-with-lease @args }
+function gca { git commit --amend @args }
+function gcan { git commit --amend --no-edit @args }
 
 if (Get-Command code -ErrorAction SilentlyContinue) {
     Set-Alias -Name c -Value code

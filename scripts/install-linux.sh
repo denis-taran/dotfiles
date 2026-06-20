@@ -260,12 +260,31 @@ declare -A links=(
 )
 
 command -v xdg-user-dirs-update >/dev/null 2>&1 && run_as_user xdg-user-dirs-update
+
+_link_owner=""
+if $_is_root; then _link_owner="$USERNAME"; fi
+
 run_as_user mkdir -p "$HOMEDIR/.ssh"
 $_is_root && chown "$USERNAME:" "$HOMEDIR/.ssh" || true
 chmod 700 "$HOMEDIR/.ssh"
 
-_link_owner=""
-if $_is_root; then _link_owner="$USERNAME"; fi
+if is_wsl; then
+    if [[ -z "${USERPROFILE:-}" ]]; then
+        echo "USERPROFILE not set" >&2
+        exit 1
+    fi
+    _win_ssh="$USERPROFILE/.ssh"
+    if [[ ! -d "$_win_ssh" ]]; then
+        echo "Windows ~/.ssh not found at $_win_ssh" >&2
+        exit 1
+    fi
+    for _f in "$_win_ssh"/*; do
+        [[ -f "$_f" ]] || continue
+        _name="$(basename "$_f")"
+        run_as_user cp "$_f" "$HOMEDIR/.ssh/$_name"
+        chmod 600 "$HOMEDIR/.ssh/$_name"
+    done
+fi
 for src in "${!links[@]}"; do
     dest="${links[$src]}"
     run_as_user mkdir -p "$(dirname "$dest")"
@@ -322,22 +341,6 @@ elif command -v vim &>/dev/null; then
     run_as_user git config -f "$_git_cfg" core.editor "vim"
 else
     run_as_user git config -f "$_git_cfg" core.editor "vi"
-fi
-
-if is_wsl; then
-    run_as_user git config -f "$_git_cfg" core.sshCommand ssh.exe
-    _wsl_appdata=$(
-        /mnt/c/Windows/System32/cmd.exe /c "echo %LOCALAPPDATA%" \
-            2>/dev/null | tail -1 | tr -d '\r'
-    ) || true
-    if [[ -n "$_wsl_appdata" ]]; then
-        _wsl_signer=$(wslpath -u "$_wsl_appdata" 2>/dev/null || true)
-        _wsl_signer+="/Microsoft/WindowsApps/op-ssh-sign-wsl.exe"
-        if [[ -x "$_wsl_signer" ]]; then
-            run_as_user  git config -f "$_git_cfg" \
-                gpg.ssh.program "$_wsl_signer"
-        fi
-    fi
 fi
 
 apt_key() {

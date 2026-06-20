@@ -86,8 +86,6 @@ function Install-DotFiles() {
 function Set-GitLocalConfig() {
     $gitLocalConfig = Join-Path -Path $Env:UserProfile -ChildPath '.config\git\local'
     $allowedSigners = Join-Path -Path $Env:UserProfile -ChildPath '.config\git\allowed_signers'
-    $opSshSign = Join-Path -Path $Env:LOCALAPPDATA -ChildPath `
-        'Microsoft\WindowsApps\op-ssh-sign.exe'
 
     $curName = git config -f $gitLocalConfig user.name 2>$null
     $curEmail = git config -f $gitLocalConfig user.email 2>$null
@@ -127,11 +125,6 @@ function Set-GitLocalConfig() {
         [System.IO.File]::WriteAllText($allowedSigners, "$gitEmail $keyLine`n", [System.Text.UTF8Encoding]::new($false))
     }
 
-    $sysRoot = $env:SystemRoot -replace '\\', '/'
-    git config -f $gitLocalConfig core.sshCommand "$sysRoot/System32/OpenSSH/ssh.exe"
-    if (Test-Path $opSshSign) {
-        git config -f $gitLocalConfig gpg.ssh.program $opSshSign
-    }
 }
 
 function Install-Apps() {
@@ -250,11 +243,7 @@ function Disable-Services() {
         "DiagTrack",
         "XboxGipSvc",
         "XblAuthManager",
-        "RemoteRegistry",
-
-        # disable the built-in OpenSSH agent from MS, so that 1Password can provide the
-        # SSH agent used by the Windows OpenSSH, Git and ssh.exe programs.
-        "ssh-agent"
+        "RemoteRegistry"
     )
 
     foreach ($service in $services) {
@@ -655,6 +644,16 @@ function Set-XdgPaths() {
         "XDG_STATE_HOME",
         (Join-Path $env:USERPROFILE ".local\state"),
         "User")
+
+    $wslenv = [Environment]::GetEnvironmentVariable("WSLENV", "User")
+    $entries = if ($wslenv) { $wslenv -split ':' } else { @() }
+    if ($entries -notcontains "USERPROFILE/p") {
+        $entries += "USERPROFILE/p"
+        [Environment]::SetEnvironmentVariable(
+            "WSLENV",
+            ($entries -join ':'),
+            "User")
+    }
 }
 
 function Backup-File($Path) {

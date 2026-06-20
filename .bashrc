@@ -39,8 +39,12 @@ alias gcm='git commit -m'
 alias gwip='git add -A && git commit -m wip'
 alias gs='git status'
 alias gd='git diff'
+alias gds='git diff --staged'
 alias gl='git log --oneline -20'
 alias gp='git push'
+alias gpf='git push --force-with-lease'
+alias gca='git commit --amend'
+alias gcan='git commit --amend --no-edit'
 alias grep='grep --color=auto'
 alias showpath='printf "%s\n" "$PATH" | tr ":" "\n"'
 
@@ -73,21 +77,6 @@ for _bashcomp in \
     fi
 done
 unset _bashcomp
-
-###############################################################################
-# Security and SSH
-###############################################################################
-
-# TODO: check plugins: https://www.1password.dev/cli/shell-plugins
-
-if [[ -n "$_IS_WSL" ]]; then
-    command -v ssh.exe >/dev/null 2>&1 && alias ssh='ssh.exe'
-    command -v ssh-add.exe >/dev/null 2>&1 && alias ssh-add='ssh-add.exe'
-else
-    if [[ -S "$HOME/.1password/agent.sock" ]]; then
-        export SSH_AUTH_SOCK="$HOME/.1password/agent.sock"
-    fi
-fi
 
 ###############################################################################
 # History
@@ -289,7 +278,7 @@ shopt -s globstar direxpand autocd checkwinsize
 
 command -v bat >/dev/null 2>&1 && export MANPAGER="bat -l man -p"
 
-command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init --cmd cd bash)"
 
 bind '"\eOP": "text-search\n"'
 
