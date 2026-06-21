@@ -1,5 +1,4 @@
 {
-    // Hide popups, ghost text, and visual clutter
     "github.copilot.inlineSuggest.enable": false,
     "editor.minimap.enabled": false,
     "editor.codeLens": false,
@@ -10,21 +9,16 @@
     "editor.autoClosingBrackets": "never",
     "workbench.tree.renderIndentGuides": "none",
     "editor.guides.indentation": false,
-    // Git
     "git.pruneOnFetch": true,
     "git.confirmSync": true,
     "git.autofetch": false,
-    // Auto-rename matching HTML/JSX tags
     "editor.linkedEditing": true,
-    // File saving and whitespace rules
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
-    // Don't strip trailing spaces in markdown (breaks hard line breaks)
     "[markdown]": {
         "files.trimTrailingWhitespace": false
     },
-    // Clean up unused imports
     "[typescript]": {
         "editor.codeActionsOnSave": {
             "source.organizeImports": "explicit"
@@ -44,5 +38,8 @@
         "editor.codeActionsOnSave": {
             "source.organizeImports": "explicit"
         }
-    }
+    },
+    "telemetry.telemetryLevel": "off",
+    "extensions.ignoreRecommendations": true,
+    "window.commandCenter": false
 }
