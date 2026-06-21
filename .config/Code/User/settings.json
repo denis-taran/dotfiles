@@ -10,7 +10,7 @@
     "workbench.tree.renderIndentGuides": "none",
     "editor.guides.indentation": false,
     "git.pruneOnFetch": true,
-    "git.confirmSync": true,
+    "git.confirmSync": false,
     "git.autofetch": false,
     "editor.linkedEditing": true,
     "files.trimTrailingWhitespace": true,
