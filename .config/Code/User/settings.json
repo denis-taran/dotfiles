@@ -1,5 +1,7 @@
 {
-    "github.copilot.inlineSuggest.enable": false,
+    "github.copilot.enable": {
+        "*": false
+    },
     "editor.minimap.enabled": false,
     "editor.codeLens": false,
     "editor.hover.enabled": "onKeyboardModifier",
@@ -41,5 +43,6 @@
     },
     "telemetry.telemetryLevel": "off",
     "extensions.ignoreRecommendations": true,
-    "window.commandCenter": false
+    "window.commandCenter": false,
+    "editor.formatOnSave": false
 }
