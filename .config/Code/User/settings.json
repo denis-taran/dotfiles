@@ -1,18 +1,48 @@
 {
-    "editor.codeLens": false,
-    "editor.formatOnSave": true,
+    // Hide popups, ghost text, and visual clutter
+    "github.copilot.inlineSuggest.enable": false,
     "editor.minimap.enabled": false,
-    "editor.rulers": [],
-    "extensions.ignoreRecommendations": true,
+    "editor.codeLens": false,
+    "editor.hover.enabled": "onKeyboardModifier",
+    "editor.inlayHints.enabled": "off",
+    "editor.lightbulb.enabled": "off",
+    "editor.stickyScroll.enabled": false,
+    "editor.autoClosingBrackets": "never",
+    "workbench.tree.renderIndentGuides": "none",
+    "editor.guides.indentation": false,
+    // Git
+    "git.pruneOnFetch": true,
+    "git.confirmSync": true,
+    "git.autofetch": false,
+    // Auto-rename matching HTML/JSX tags
+    "editor.linkedEditing": true,
+    // File saving and whitespace rules
+    "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
-    "files.trimTrailingWhitespace": true,
-    "git.autofetch": false,
-    "git.confirmSync": false,
-    "git.enableSmartCommit": true,
-    "git.pruneOnFetch": false,
-    "json.schemas": [],
-    "telemetry.telemetryLevel": "off",
-    "terminal.integrated.defaultProfile.linux": "bash",
-    "workbench.startupEditor": "none"
+    // Don't strip trailing spaces in markdown (breaks hard line breaks)
+    "[markdown]": {
+        "files.trimTrailingWhitespace": false
+    },
+    // Clean up unused imports
+    "[typescript]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "[typescriptreact]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "[javascript]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "[javascriptreact]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    }
 }
