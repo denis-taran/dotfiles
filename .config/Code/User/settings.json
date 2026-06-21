@@ -8,7 +8,7 @@
     "editor.inlayHints.enabled": "off",
     "editor.lightbulb.enabled": "off",
     "editor.stickyScroll.enabled": false,
-    "editor.autoClosingBrackets": "never",
+    "editor.autoClosingBrackets": "languageDefined",
     "workbench.tree.renderIndentGuides": "none",
     "editor.guides.indentation": false,
     "git.pruneOnFetch": true,
@@ -44,5 +44,26 @@
     "telemetry.telemetryLevel": "off",
     "extensions.ignoreRecommendations": true,
     "window.commandCenter": false,
-    "editor.formatOnSave": false
+    "editor.formatOnSave": true,
+    "workbench.settings.applyToAllProfiles": [],
+    "git.enableSmartCommit": true,
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/.git": true,
+        "**/dist": true,
+        "**/build": true
+    },
+    "files.exclude": {
+        "**/.DS_Store": true
+    },
+    "files.watcherExclude": {
+        "**/bin/**": true,
+        "**/obj/**": true,
+        "**/coverage/**": true,
+        "**/.terraform/**": true,
+        "**/.next/**": true
+    },
+    "editor.bracketPairColorization.enabled": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.rename.enablePreview": false
 }
