@@ -131,6 +131,7 @@ function Install-Apps() {
         "ajeetdsouza.zoxide",
         "Amazon.AWSCLI",
         "Anthropic.ClaudeCode",
+        "dandavison.delta",
         "dotPDN.PaintDotNet",
         "Git.Git",
         "Microsoft.AzureCLI",

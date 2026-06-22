@@ -62,10 +62,10 @@ elif command -v wl-copy >/dev/null 2>&1; then
 fi
 
 if command -v eza >/dev/null 2>&1; then
-    alias lg='eza --git -l --color=always'
-    alias ll='eza -lh --color=always'
-    alias ls='eza --color=always'
-    alias tree='eza --tree --color=always'
+    alias lg='eza --git -l --color=auto'
+    alias ll='eza -lh --color=auto'
+    alias ls='eza --color=auto'
+    alias tree='eza --tree --color=auto'
 fi
 
 mkcd() {
@@ -116,6 +116,11 @@ export HISTFILESIZE=200000
 export DOCKER_CLI_HINTS="false"
 
 alias k='kubectl'
+
+if command -v kubectl >/dev/null 2>&1; then
+    source <(kubectl completion bash)
+    complete -o default -F __start_kubectl k
+fi
 
 if command -v podman >/dev/null 2>&1; then
     export KIND_EXPERIMENTAL_PROVIDER=podman

@@ -16,8 +16,8 @@
     attributesFile = ~/.config/git/attributes
 	excludesfile = ~/.config/git/ignore
 	autocrlf = input
-	ignorecase = false
     symlinks = true
+    pager = ~/.config/git/pager
 [color]
 	ui = true
 [color "diff-highlight"]
@@ -33,6 +33,13 @@
 	new = green bold
 	whitespace = red reverse
 	func = 146 bold
+[delta]
+    navigate = true
+    dark = true
+    line-numbers = true
+    hyperlinks = true
+[interactive]
+    diffFilter = delta --color-only
 [init]
 	defaultBranch = main
 [fetch]
