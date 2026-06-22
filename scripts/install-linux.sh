@@ -35,6 +35,7 @@ readonly _MICROSOFT_2025_GPG_FP="AA86F75E427A19DD33346403EE4D7792F748182B"
 readonly _HELM_GPG_FP="DDF78C3E6EBB2D2CC223C95C62BA89D07698DBC6"
 readonly _TERRAFORM_GPG_FP="798AEC654E5C15428C8E42EEAA16FCBCA621E701"
 readonly _1PASSWORD_GPG_FP="3FEF9748469ADBE15DA7CA80AC2D62742012EA22"
+readonly _CLAUDE_GPG_FP="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
 
 _is_root=false
 [ "$EUID" -eq 0 ] && _is_root=true
@@ -441,10 +442,16 @@ if $_is_ubuntu && $_is_root; then
     printf 'deb [arch=%s signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com %s test\n' \
         "$_arch" "$_hc_codename" >/etc/apt/sources.list.d/hashicorp.list
 
+    apt_key "https://downloads.claude.ai/keys/claude-code.asc" \
+        "/etc/apt/keyrings/claude-code.gpg" \
+        "" "$_CLAUDE_GPG_FP" >/dev/null
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/claude-code.gpg] https://downloads.claude.ai/claude-code/apt/stable stable main\n' \
+        "$_arch" >/etc/apt/sources.list.d/claude-code.list
+
     apt-get update
 
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
-        azure-cli helm "dotnet-sdk-${_DOTNET_SDK_VERSION}" terraform
+        azure-cli claude-code helm "dotnet-sdk-${_DOTNET_SDK_VERSION}" terraform
 
     if ! is_wsl; then
         apt_key "https://downloads.1password.com/linux/keys/1password.asc" \

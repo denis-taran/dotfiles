@@ -2,6 +2,7 @@
     path = ~/.config/git/local
 [commit]
     gpgsign = true
+    verbose = true
 [pull]
     rebase = true
 [branch]
@@ -10,6 +11,7 @@
 [push]
     default = current
     autoSetupRemote = true
+    followTags = true
 [core]
     attributesFile = ~/.config/git/attributes
 	excludesfile = ~/.config/git/ignore
@@ -36,19 +38,33 @@
 [fetch]
     prune = true
     pruneTags = true
+    fsckobjects = true
 [diff]
     algorithm = histogram
     colorMoved = default
+    renames = copies
 [rerere]
     enabled = true
+    autoupdate = true
 [merge]
     conflictstyle = zdiff3
+    log = true
 [rebase]
     autoSquash = true
     autoStash = true
     updateRefs = true
 [tag]
     sort = version:refname
+[checkout]
+    defaultRemote = origin
+[stash]
+    showPatch = true
+[apply]
+    whitespace = fix
+[transfer]
+    fsckobjects = true
+[receive]
+    fsckObjects = true
 [filter "lfs"]
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process

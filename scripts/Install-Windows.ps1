@@ -130,6 +130,7 @@ function Install-Apps() {
         "AgileBits.1Password",
         "ajeetdsouza.zoxide",
         "Amazon.AWSCLI",
+        "Anthropic.ClaudeCode",
         "dotPDN.PaintDotNet",
         "Git.Git",
         "Microsoft.AzureCLI",

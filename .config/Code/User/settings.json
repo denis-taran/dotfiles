@@ -1,69 +1,85 @@
 {
-    "github.copilot.enable": {
-        "*": false
+    "[markdown]": {
+        "editor.quickSuggestions": {
+            "comments": "off",
+            "other": "off",
+            "strings": "off"
+        },
+        "files.trimTrailingWhitespace": false
     },
-    "editor.minimap.enabled": false,
+    "[typescript][typescriptreact][javascript][javascriptreact]": {
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.fixAll.eslint": "explicit",
+            "source.organizeImports": "explicit"
+        }
+    },
+    "editor.autoClosingBrackets": "languageDefined",
+    "editor.bracketPairColorization.enabled": true,
     "editor.codeLens": false,
+    "editor.cursorBlinking": "smooth",
+    "editor.cursorSmoothCaretAnimation": "on",
+    "editor.formatOnSave": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.guides.indentation": false,
     "editor.hover.enabled": "onKeyboardModifier",
     "editor.inlayHints.enabled": "off",
     "editor.lightbulb.enabled": "off",
-    "editor.stickyScroll.enabled": false,
-    "editor.autoClosingBrackets": "languageDefined",
-    "workbench.tree.renderIndentGuides": "none",
-    "editor.guides.indentation": false,
-    "git.pruneOnFetch": true,
-    "git.confirmSync": false,
-    "git.autofetch": false,
     "editor.linkedEditing": true,
-    "files.trimTrailingWhitespace": true,
-    "files.insertFinalNewline": true,
-    "files.trimFinalNewlines": true,
-    "[markdown]": {
-        "files.trimTrailingWhitespace": false
-    },
-    "[typescript]": {
-        "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit"
-        }
-    },
-    "[typescriptreact]": {
-        "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit"
-        }
-    },
-    "[javascript]": {
-        "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit"
-        }
-    },
-    "[javascriptreact]": {
-        "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit"
-        }
-    },
-    "telemetry.telemetryLevel": "off",
+    "editor.minimap.enabled": false,
+    "editor.rename.enablePreview": false,
+    "editor.renderLineHighlight": "all",
+    "editor.renderLineHighlightOnlyWhenFocus": true,
+    "editor.scrollBeyondLastColumn": 5,
+    "editor.smoothScrolling": true,
+    "editor.stickyScroll.enabled": true,
+    "explorer.compactFolders": true,
     "extensions.ignoreRecommendations": true,
-    "window.commandCenter": false,
-    "editor.formatOnSave": true,
-    "workbench.settings.applyToAllProfiles": [],
-    "git.enableSmartCommit": true,
-    "search.exclude": {
-        "**/node_modules": true,
-        "**/.git": true,
-        "**/dist": true,
-        "**/build": true
-    },
     "files.exclude": {
         "**/.DS_Store": true
     },
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "files.trimTrailingWhitespace": true,
     "files.watcherExclude": {
-        "**/bin/**": true,
-        "**/obj/**": true,
-        "**/coverage/**": true,
+        "**/.next/**": true,
         "**/.terraform/**": true,
-        "**/.next/**": true
+        "**/.venv/**": true,
+        "**/bin/**": true,
+        "**/coverage/**": true,
+        "**/dist/**": true,
+        "**/obj/**": true
     },
-    "editor.bracketPairColorization.enabled": true,
-    "editor.guides.bracketPairs": "active",
-    "editor.rename.enablePreview": false
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "git.enableSmartCommit": true,
+    "git.pruneOnFetch": true,
+    "github.copilot.enable": {
+        "*": false
+    },
+    "prettier.requireConfig": true,
+    "search.exclude": {
+        "**/.git": true,
+        "**/.terraform": true,
+        "**/.venv": true,
+        "**/build": true,
+        "**/coverage": true,
+        "**/dist": true,
+        "**/node_modules": true
+    },
+    "telemetry.telemetryLevel": "off",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.enableMultiLinePasteWarning": "never",
+    "terminal.integrated.scrollback": 10000,
+    "terminal.integrated.shellIntegration.enabled": true,
+    "window.commandCenter": false,
+    "workbench.editor.enablePreview": false,
+    "workbench.editor.enablePreviewFromQuickOpen": false,
+    "workbench.list.smoothScrolling": true,
+    "workbench.settings.applyToAllProfiles": [],
+    "workbench.tree.renderIndentGuides": "none",
+    "zenMode.hideStatusBar": false,
+    "window.autoDetectColorScheme": true,
+    "workbench.preferredLightColorTheme": "Light 2026",
+    "workbench.preferredDarkColorTheme": "Dark 2026"
 }

@@ -19,6 +19,10 @@ vim.opt.softtabstop = 4
 -- scrolling
 vim.opt.scrolloff = 3
 
+-- cursor
+vim.opt.cursorline = true
+vim.opt.updatetime = 250
+
 -- noise control
 vim.opt.visualbell = true
 vim.opt.shortmess:append("I")
@@ -44,3 +48,5 @@ vim.cmd.colorscheme("default")
 
 -- keymaps
 vim.keymap.set("n", "<leader>h", "<cmd>nohlsearch<cr>", { desc = "Clear search highlight" })
+vim.keymap.set("n", "n", "nzzzv")
+vim.keymap.set("n", "N", "Nzzzv")

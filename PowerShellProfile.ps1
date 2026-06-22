@@ -54,6 +54,12 @@ function gp { git push @args }
 function gpf { git push --force-with-lease @args }
 function gca { git commit --amend @args }
 function gcan { git commit --amend --no-edit @args }
+function a { claude -p $args }
+
+function mkcd {
+    $Target = New-Item -ItemType Directory -Path $args[0] -Force
+    Set-Location -Path $Target.FullName
+}
 
 if (Get-Command code -ErrorAction SilentlyContinue) {
     Set-Alias -Name c -Value code
@@ -117,7 +123,10 @@ function Get-GitInfo {
         if ([IO.File]::Exists($g)) {
             $ref = [IO.File]::ReadAllText($g).Trim()
             if ($ref.StartsWith("gitdir: ")) {
-                $gitDir = [IO.Path]::GetFullPath([IO.Path]::Combine($d, $ref.Substring(8)))
+                $resolved = [IO.Path]::Combine(
+                    $d, $ref.Substring(8))
+                $gitDir = [IO.Path]::GetFullPath(
+                    $resolved)
             }
             break
         }
@@ -135,7 +144,10 @@ function Get-GitInfo {
     $commonGitDir = $gitDir
     $commondirPath = [IO.Path]::Combine($gitDir, "commondir")
     if ([IO.File]::Exists($commondirPath)) {
-        $commonGitDir = [IO.Path]::GetFullPath([IO.Path]::Combine($gitDir, [IO.File]::ReadAllText($commondirPath).Trim()))
+        $rel = [IO.File]::ReadAllText(
+            $commondirPath).Trim()
+        $commonGitDir = [IO.Path]::GetFullPath(
+            [IO.Path]::Combine($gitDir, $rel))
     }
 
     $branch = $head.Substring(16)
@@ -160,12 +172,16 @@ function Get-GitInfo {
         $state = "|REBASE"
     } elseif ([IO.File]::Exists([IO.Path]::Combine($gitDir, "MERGE_HEAD"))) {
         $state = "|MERGE"
-    } elseif ([IO.File]::Exists([IO.Path]::Combine($gitDir, "CHERRY_PICK_HEAD"))) {
+    } elseif ([IO.File]::Exists(
+        [IO.Path]::Combine($gitDir, "CHERRY_PICK_HEAD")
+    )) {
         $state = "|CHERRY"
     }
 
     if ($branch.Length -gt 30) {
-        $branch = $branch.Substring(0, 14) + [char]0x2026 + $branch.Substring($branch.Length - 15)
+        $branch = $branch.Substring(0, 14) +
+            [char]0x2026 +
+            $branch.Substring($branch.Length - 15)
     }
     if ($oid) {
         return "[$branch@$($oid.Substring(0, 7))$state]"

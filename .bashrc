@@ -45,8 +45,13 @@ alias gp='git push'
 alias gpf='git push --force-with-lease'
 alias gca='git commit --amend'
 alias gcan='git commit --amend --no-edit'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
 alias grep='grep --color=auto'
+alias sudo='sudo '
 alias showpath='printf "%s\n" "$PATH" | tr ":" "\n"'
+alias a='claude -p'
 
 if [[ -n "$_IS_WSL" ]]; then
     alias pbcopy='sed "s/\x1B\[[0-9;]*[mK]//g" | clip.exe'
@@ -62,6 +67,17 @@ if command -v eza >/dev/null 2>&1; then
     alias ls='eza --color=always'
     alias tree='eza --tree --color=always'
 fi
+
+mkcd() {
+    mkdir -p "$1" && cd "$1"
+}
+
+gr() { cd "$(git rev-parse --show-toplevel)" || return; }
+
+portkill() {
+    : "${1:?port required}"
+    lsof -ti ":$1" | xargs -r kill
+}
 
 ###############################################################################
 # Bash Completions
@@ -89,6 +105,7 @@ if [[ ! "${HISTTIMEFORMAT@a}" == *r* ]]; then
 fi
 
 export HISTCONTROL=ignoreboth
+export HISTIGNORE="&:[ ]*:exit:ls:bg:fg:history:clear:pwd:jobs:cd"
 export HISTSIZE=100000
 export HISTFILESIZE=200000
 
@@ -268,18 +285,26 @@ if command -v nvim >/dev/null 2>&1; then
 else
     export EDITOR='vim'
 fi
+export VISUAL="$EDITOR"
 command -v code >/dev/null 2>&1 && alias c='code'
 
 ###############################################################################
 # Other Settings
 ###############################################################################
 
-shopt -s globstar direxpand autocd checkwinsize
+shopt -s globstar direxpand autocd checkwinsize cdspell dirspell
 
 command -v bat >/dev/null 2>&1 && export MANPAGER="bat -l man -p"
 
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init --cmd cd bash)"
 
+command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
+
+if type __git_complete &>/dev/null; then
+    __git_complete g __git_main
+fi
+
+bind Space:magic-space
 bind '"\eOP": "text-search\n"'
 
 # temporary workaround for Playwright on ubuntu 26.04
