@@ -262,8 +262,6 @@ declare -A links=(
     ["$SCRIPT_DIR/.editorconfig"]="$HOMEDIR/.editorconfig"
 )
 
-command -v xdg-user-dirs-update >/dev/null 2>&1 && run_as_user xdg-user-dirs-update
-
 _link_owner=""
 if $_is_root; then _link_owner="$USERNAME"; fi
 
@@ -293,6 +291,57 @@ for src in "${!links[@]}"; do
     run_as_user mkdir -p "$(dirname "$dest")"
     create_link "$src" "$dest" "${_link_owner:-}"
 done
+
+if is_wsl; then
+    _win_userdir="$USERPROFILE"
+    if [[ ! -d "$_win_userdir" || -L "$_win_userdir" ]]; then
+        echo "Windows user dir not found. Skipping." >&2
+    else
+        _ensure_win_folder() {
+            local folder="$1"
+            if [[ "$folder" != "$_win_userdir/"* ]]; then
+                echo "Path '$folder' is outside '$_win_userdir'. Skipping." >&2
+                return 1
+            fi
+            if [[ -L "$folder" ]]; then
+                echo "Path '$folder' is a symlink. Skipping." >&2
+                return 1
+            fi
+            [[ -d "$folder" ]] || run_as_user mkdir -p -- "$folder"
+        }
+
+        _ensure_win_folder "$_win_userdir/.aws"
+        _ensure_win_folder "$_win_userdir/.azure"
+        _ensure_win_folder "$_win_userdir/.config/gcloud"
+        _ensure_win_folder "$_win_userdir/.kube"
+        _ensure_win_folder "$_win_userdir/AppData/Roaming/helm"
+
+        _onedrive="$_win_userdir/OneDrive"
+
+        declare -A wsl_links=(
+            ["$_win_userdir/.aws"]="$HOMEDIR/.aws"
+            ["$_win_userdir/.azure"]="$HOMEDIR/.azure"
+            ["$_win_userdir/.config/gcloud"]="$HOMEDIR/.config/gcloud"
+            ["$_win_userdir/.kube"]="$HOMEDIR/.kube"
+            ["$_win_userdir/AppData/Roaming/helm"]="$HOMEDIR/.config/helm"
+            ["$_win_userdir/Backups"]="$HOMEDIR/Backups"
+            ["$_win_userdir/Dev"]="$HOMEDIR/Dev"
+            ["$_win_userdir/Desktop"]="$HOMEDIR/Desktop"
+            ["$_win_userdir/Downloads"]="$HOMEDIR/Downloads"
+            ["$_onedrive"]="$HOMEDIR/OneDrive"
+        )
+
+        for _wsl_target in "${!wsl_links[@]}"; do
+            _wsl_dest="${wsl_links[$_wsl_target]}"
+            run_as_user mkdir -p "$(dirname "$_wsl_dest")"
+            create_link "$_wsl_target" "$_wsl_dest" "${_link_owner:-}" || continue
+        done
+
+        unset -f _ensure_win_folder
+    fi
+fi
+
+command -v xdg-user-dirs-update >/dev/null 2>&1 && run_as_user xdg-user-dirs-update
 
 _git_cfg="$HOMEDIR/.config/git/local"
 _allowed_signers="$HOMEDIR/.config/git/allowed_signers"
