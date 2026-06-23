@@ -61,6 +61,14 @@ elif command -v wl-copy >/dev/null 2>&1; then
     alias pbpaste='wl-paste'
 fi
 
+venv() {
+    if [[ -d ".venv" ]]; then
+        source .venv/bin/activate
+    else
+        python -m venv .venv && source .venv/bin/activate && pip install --upgrade pip
+    fi
+}
+
 if command -v eza >/dev/null 2>&1; then
     alias lg='eza --git -l --color=auto'
     alias ll='eza -lh --color=auto'

@@ -1,4 +1,11 @@
 {
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.python",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
     "[markdown]": {
         "editor.quickSuggestions": {
             "comments": "off",

@@ -65,6 +65,13 @@ tags
 *.rej
 .~lock.*
 
+# 4. Python
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+
 ## Settings
 
 **/*.local.json
