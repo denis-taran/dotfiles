@@ -11,14 +11,6 @@ if (Test-Path -LiteralPath (Join-Path $HOME ".env.ps1")) {
 $env:GIT_OPTIONAL_LOCKS = "0"
 
 ###############################################################################
-# Navigation
-###############################################################################
-
-if (Get-Command zoxide -ErrorAction SilentlyContinue) {
-    zoxide init powershell | Out-String | Invoke-Expression
-}
-
-###############################################################################
 # Common Aliases
 ###############################################################################
 
@@ -54,7 +46,6 @@ function gp { git push @args }
 function gpf { git push --force-with-lease @args }
 function gca { git commit --amend @args }
 function gcan { git commit --amend --no-edit @args }
-function a { claude -p $args }
 
 function mkcd {
     $Target = New-Item -ItemType Directory -Path $args[0] -Force
@@ -63,14 +54,6 @@ function mkcd {
 
 if (Get-Command code -ErrorAction SilentlyContinue) {
     Set-Alias -Name c -Value code
-}
-
-$neovimCmd = Get-Command nvim -ErrorAction SilentlyContinue
-
-if ($neovimCmd) {
-    Set-Alias vi  $neovimCmd.Source
-    Set-Alias vim $neovimCmd.Source
-    $env:EDITOR = "nvim"
 }
 
 ###############################################################################
@@ -103,13 +86,6 @@ function kube_info {
 function disable_kube_info {
     Remove-Item Env:DISPLAY_KUBE_INFO -ErrorAction SilentlyContinue
 }
-
-###############################################################################
-# 1Password
-###############################################################################
-
-$opPlugins = Join-Path $HOME ".config\op\plugins.ps1"
-if (Test-Path $opPlugins) { . $opPlugins }
 
 ###############################################################################
 # Prompt

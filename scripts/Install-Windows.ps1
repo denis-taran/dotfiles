@@ -78,7 +78,6 @@ function Install-DotFiles() {
     Set-Link -LinkPath "$Env:UserProfile/.config/git/config" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\config')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/pager" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\pager')
     Set-Link -LinkPath "$Env:UserProfile/.editorconfig" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.editorconfig')
-    Set-Link -LinkPath "$Env:LOCALAPPDATA\nvim\init.lua" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\nvim\init.lua')
 }
 
 function Set-GitLocalConfig() {
@@ -129,22 +128,16 @@ function Install-Apps() {
     $applications = @(
         "AgileBits.1Password.CLI",
         "AgileBits.1Password",
-        "ajeetdsouza.zoxide",
-        "Amazon.AWSCLI",
-        "Anthropic.ClaudeCode",
-        "dandavison.delta",
         "dotPDN.PaintDotNet",
         "Git.Git",
-        "Microsoft.AzureCLI",
         "Microsoft.Coreutils",
         "Microsoft.DotNet.SDK.10",
         "Microsoft.PowerShell",
         "Microsoft.VisualStudioCode",
-        "Neovim.Neovim",
         "Obsidian.Obsidian",
         "ONLYOFFICE.DesktopEditors",
-        "OpenJS.NodeJS.LTS",
-        "Python.Python.3.14",
+        "Proton.ProtonDrive",
+        "Proton.ProtonVPN",
         "Tailscale.Tailscale"
     )
 
@@ -656,6 +649,11 @@ function Set-XdgPaths() {
     }
 }
 
+function Uninstall-OneDrive() {
+    Write-Host "Uninstalling OneDrive..."
+    winget uninstall -e --id Microsoft.OneDrive --accept-source-agreements
+}
+
 function Backup-File($Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return }
     $ts = Get-Date -Format "yyyy-MM-dd HH-mm-ss"
@@ -686,9 +684,12 @@ if ($confirm -ne 'yes') {
     exit
 }
 
+$workAnswer = Read-Host "Is this a work machine? (y/n)"
+$IsWorkMachine = $workAnswer -eq 'y'
+
 Backup-Registry
 Install-DotFiles
-if ($IsAdmin) { Install-Apps }
+if ($IsAdmin -and -not $IsWorkMachine) { Install-Apps }
 Set-GitLocalConfig
 Set-Keyboard
 Set-NoSoundScheme
@@ -706,20 +707,24 @@ Set-PowerShellSettings
 Set-PrivacySettings
 Set-XdgPaths
 
-if ($IsAdmin) {
+if (-not $IsWorkMachine) {
+    Uninstall-OneDrive
+}
+
+if ($IsAdmin -and -not $IsWorkMachine) {
+    Disable-WindowsFeatures
+    Set-PowerManagement
+    Enable-LocationAndTz
+    Enable-Virtualization
     Uninstall-Preinstalled-Apps
     Disable-Services
-    Disable-WindowsFeatures
     Set-SecurityBaseline
-    Set-PowerManagement
     Set-WindowsSecurity
     Set-DeveloperSettings
     Set-EdgeSettings
     Disable-ConnectivityFeatures
     Set-StorageSettings
-    Enable-LocationAndTz
     Invoke-PerformanceTweak
-    Enable-Virtualization
     Set-WindowsUpdateSettings
 }
 

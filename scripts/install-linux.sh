@@ -310,22 +310,10 @@ if is_wsl; then
             [[ -d "$folder" ]] || run_as_user mkdir -p -- "$folder"
         }
 
-        _ensure_win_folder "$_win_userdir/.aws"
-        _ensure_win_folder "$_win_userdir/.azure"
-        _ensure_win_folder "$_win_userdir/.config/gcloud"
-        _ensure_win_folder "$_win_userdir/.kube"
-        _ensure_win_folder "$_win_userdir/AppData/Roaming/helm"
-
         _onedrive="$_win_userdir/OneDrive"
 
         declare -A wsl_links=(
-            ["$_win_userdir/.aws"]="$HOMEDIR/.aws"
-            ["$_win_userdir/.azure"]="$HOMEDIR/.azure"
-            ["$_win_userdir/.config/gcloud"]="$HOMEDIR/.config/gcloud"
-            ["$_win_userdir/.kube"]="$HOMEDIR/.kube"
-            ["$_win_userdir/AppData/Roaming/helm"]="$HOMEDIR/.config/helm"
             ["$_win_userdir/Backups"]="$HOMEDIR/Backups"
-            ["$_win_userdir/Dev"]="$HOMEDIR/Dev"
             ["$_win_userdir/Desktop"]="$HOMEDIR/Desktop"
             ["$_win_userdir/Downloads"]="$HOMEDIR/Downloads"
             ["$_onedrive"]="$HOMEDIR/OneDrive"
