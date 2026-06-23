@@ -1,7 +1,4 @@
-[include]
-    path = ~/.config/git/local
 [commit]
-    gpgsign = true
     verbose = true
 [pull]
     rebase = true
@@ -72,3 +69,5 @@
 	clean = git-lfs clean -- %f
 [include]
     path = ~/.config/git/delta
+[include]
+    path = ~/.config/git/local
