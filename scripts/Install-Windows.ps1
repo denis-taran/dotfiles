@@ -652,6 +652,7 @@ function Set-XdgPaths() {
 function Uninstall-OneDrive() {
     Write-Host "Uninstalling OneDrive..."
     winget uninstall -e --id Microsoft.OneDrive --accept-source-agreements
+    Remove-Item -Path "$env:USERPROFILE\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 function Backup-File($Path) {

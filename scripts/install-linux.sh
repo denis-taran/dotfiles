@@ -256,7 +256,7 @@ declare -A links=(
     ["$SCRIPT_DIR/.config/git/config"]="$HOMEDIR/.config/git/config"
     ["$SCRIPT_DIR/.config/git/ignore"]="$HOMEDIR/.config/git/ignore"
     ["$SCRIPT_DIR/.config/git/attributes"]="$HOMEDIR/.config/git/attributes"
-    ["$SCRIPT_DIR/.config/git/pager"]="$HOMEDIR/.config/git/pager"
+    ["$SCRIPT_DIR/.config/git/delta"]="$HOMEDIR/.config/git/delta"
     ["$SCRIPT_DIR/.inputrc"]="$HOMEDIR/.inputrc"
     ["$SCRIPT_DIR/.config/nvim/init.lua"]="$HOMEDIR/.config/nvim/init.lua"
     ["$SCRIPT_DIR/.editorconfig"]="$HOMEDIR/.editorconfig"
@@ -293,39 +293,20 @@ for src in "${!links[@]}"; do
 done
 
 if is_wsl; then
-    _win_userdir="$USERPROFILE"
-    if [[ ! -d "$_win_userdir" || -L "$_win_userdir" ]]; then
+    if [[ ! -d "$USERPROFILE" || -L "$USERPROFILE" ]]; then
         echo "Windows user dir not found. Skipping." >&2
     else
-        _ensure_win_folder() {
-            local folder="$1"
-            if [[ "$folder" != "$_win_userdir/"* ]]; then
-                echo "Path '$folder' is outside '$_win_userdir'. Skipping." >&2
-                return 1
-            fi
-            if [[ -L "$folder" ]]; then
-                echo "Path '$folder' is a symlink. Skipping." >&2
-                return 1
-            fi
-            [[ -d "$folder" ]] || run_as_user mkdir -p -- "$folder"
-        }
-
-        _onedrive="$_win_userdir/OneDrive"
-
         declare -A wsl_links=(
-            ["$_win_userdir/Backups"]="$HOMEDIR/Backups"
-            ["$_win_userdir/Desktop"]="$HOMEDIR/Desktop"
-            ["$_win_userdir/Downloads"]="$HOMEDIR/Downloads"
-            ["$_onedrive"]="$HOMEDIR/OneDrive"
+            ["$USERPROFILE/Backups"]="$HOMEDIR/Backups"
+            ["$USERPROFILE/Desktop"]="$HOMEDIR/Desktop"
+            ["$USERPROFILE/Downloads"]="$HOMEDIR/Downloads"
+            ["$USERPROFILE/Proton"]="$HOMEDIR/Proton"
         )
 
         for _wsl_target in "${!wsl_links[@]}"; do
             _wsl_dest="${wsl_links[$_wsl_target]}"
-            run_as_user mkdir -p "$(dirname "$_wsl_dest")"
             create_link "$_wsl_target" "$_wsl_dest" "${_link_owner:-}" || continue
         done
-
-        unset -f _ensure_win_folder
     fi
 fi
 
