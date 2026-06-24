@@ -1,3 +1,4 @@
+charliermarsh.ruff
 esbenp.prettier-vscode
 ms-dotnettools.csdevkit
 ms-dotnettools.csharp

@@ -1,14 +1,16 @@
 {
+    "[csharp]": {
+        "editor.defaultFormatter": "ms-dotnettools.csharp"
+    },
     "[python]": {
-        "editor.defaultFormatter": "ms-python.python",
-        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
             "source.organizeImports": "explicit"
         }
     },
     "[markdown]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.formatOnSave": true,
         "editor.quickSuggestions": {
             "comments": "off",
             "other": "off",
@@ -17,10 +19,9 @@
         "files.trimTrailingWhitespace": false
     },
     "[typescript][typescriptreact][javascript][javascriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
         "editor.codeActionsOnSave": {
-            "source.fixAll": "explicit",
-            "source.fixAll.eslint": "explicit",
-            "source.organizeImports": "explicit"
+            "source.fixAll.eslint": "explicit"
         }
     },
     "editor.autoClosingBrackets": "languageDefined",
@@ -89,5 +90,7 @@
     "zenMode.hideStatusBar": false,
     "window.autoDetectColorScheme": true,
     "workbench.preferredLightColorTheme": "Light 2026",
-    "workbench.preferredDarkColorTheme": "Dark 2026"
+    "workbench.preferredDarkColorTheme": "Dark 2026",
+    "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "fullSolution",
+    "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"
 }
