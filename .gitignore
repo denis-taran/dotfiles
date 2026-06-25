@@ -8,3 +8,5 @@
 !.config/nvim/
 !.config/tmux/
 !.config/vs/
+settings.json
+!.config/Code/User/settings.json

@@ -65,7 +65,8 @@ venv() {
     if [[ -d ".venv" ]]; then
         source .venv/bin/activate
     else
-        python -m venv .venv && source .venv/bin/activate && pip install --upgrade pip
+        python -m venv .venv && source .venv/bin/activate \
+            && pip install --upgrade pip
     fi
 }
 
@@ -86,6 +87,60 @@ portkill() {
     : "${1:?port required}"
     lsof -ti ":$1" | xargs -r kill
 }
+
+p() {
+    local code_dir="$HOME/Code"
+    local pdir="$code_dir/${1:?project name required}"
+    local wt_list wt_count target
+
+    [[ -d "$pdir" ]] \
+        || { printf "Not found: $1\n" >&2; return 1; }
+
+    wt_list="$(git -C "$pdir" worktree list 2>/dev/null)" \
+        || {  cd "$pdir" || return; return; }
+
+    wt_count="$(wc -l <<< "$wt_list")"
+    (( wt_count > 1 )) \
+        ||  { cd "$pdir" || return; return; }
+
+    if [[ -n "${2-}" ]]; then
+        target="$(awk -v wt="$2" \
+            'index($0, wt) {print $1; exit}' <<< "$wt_list")"
+    else
+        target="$(awk '
+            { fallback=$1 }
+            /\[main\]/   { preferred=$1 }
+            /\[master\]/ && !preferred { preferred=$1 }
+            !/\(bare\)/ && !first { first=$1 }
+            END { print preferred ? preferred : first ? first : fallback }
+        ' <<< "$wt_list")"
+    fi
+
+     [[ -n "$target" ]] \
+        || { echo "Worktree not found: ${2:-default}" >&2; return 1; }
+    cd "$target" || return
+}
+
+_p_completions() {
+    local code_dir="$HOME/Code"
+    local cur="${COMP_WORDS[$COMP_CWORD]}"
+    if [[ $COMP_CWORD -eq 1 ]]; then
+        local words
+        words="$(command ls -1 "$code_dir" 2>/dev/null)"
+        mapfile -t COMPREPLY < <(compgen -W "$words" -- "$cur")
+    elif [[ $COMP_CWORD -eq 2 ]]; then
+        local pdir="$code_dir/${COMP_WORDS[1]}"
+        if [[  -d "$pdir" ]]; then
+            branches="$(
+                git -C "$pdir" worktree list 2>/dev/null \
+                    | awk '{gsub(/[\[\]]/, "", $3); if ($3) print $3}'
+            )"
+            mapfile -t COMPREPLY \
+                < <(compgen -W "$branches" -- "$cur")
+        fi
+    fi
+}
+complete -F _p_completions p
 
 ###############################################################################
 # Bash Completions

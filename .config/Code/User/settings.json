@@ -32,7 +32,7 @@
     "editor.formatOnSave": true,
     "editor.guides.bracketPairs": "active",
     "editor.guides.indentation": false,
-    "editor.hover.enabled": "onKeyboardModifier",
+    "editor.hover.enabled": "on",
     "editor.inlayHints.enabled": "off",
     "editor.lightbulb.enabled": "off",
     "editor.linkedEditing": true,
