@@ -189,6 +189,7 @@ if $_is_ubuntu && $_is_root; then
         "neovim"
         "netavark"
         "pandoc"
+        "postgresql-client"
         "passt"
         "pipx"
         "podman-compose"

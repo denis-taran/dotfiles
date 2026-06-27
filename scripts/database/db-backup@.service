@@ -1,0 +1,12 @@
+[Unit]
+Description=Production database backup
+
+[Service]
+Type=oneshot
+User=%i
+LoadCredential=db-host:/etc/credstore/db-host
+LoadCredential=db-port:/etc/credstore/db-port
+LoadCredential=db-name:/etc/credstore/db-name
+LoadCredential=db-user:/etc/credstore/db-user
+LoadCredential=db-password:/etc/credstore/db-password
+ExecStart=/home/%i/Code/dotfiles/scripts/database/db-backup.sh
