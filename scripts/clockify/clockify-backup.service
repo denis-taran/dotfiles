@@ -1,0 +1,6 @@
+[Unit]
+Description=Clockify time entries backup
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c '. $HOME/.env.sh && python3 $HOME/Code/dotfiles/scripts/clockify/clockify-backup.py'
