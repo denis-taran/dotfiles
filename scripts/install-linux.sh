@@ -523,12 +523,18 @@ UNIT
         systemctl enable wsl-rshared.service
     fi
 
-    # runs kind as regular user, optionally injecting env vars
+    # runs kind as regular user with rootless podman
     _kind_as_user() {
+        local uid
+        uid=$(id -u "$USERNAME")
         if is_wsl; then
             sudo -u "$USERNAME" -H env KIND_EXPERIMENTAL_PROVIDER=podman NETAVARK_FW=iptables kind "$@"
         else
-            sudo -u "$USERNAME" -H kind "$@"
+            sudo -u "$USERNAME" -H \
+                env XDG_RUNTIME_DIR="/run/user/$uid" \
+                    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+                    KIND_EXPERIMENTAL_PROVIDER=podman \
+                systemd-run --scope --user -p Delegate=yes kind "$@"
         fi
     }
 
