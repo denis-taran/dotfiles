@@ -229,11 +229,12 @@ function clr {
 }
 
 function git_prompt {
-    local d="$PWD" gd=""
+    local d="$PWD" gd="" git_file=false
 
     while [[ -n "$d" ]]; do
         if [[ -d "$d/.git" ]]; then gd="$d/.git"; break; fi
         if [[ -f "$d/.git" ]]; then
+            git_file=true
             read -r gd < "$d/.git"
             if [[ "$gd" == "gitdir: "* ]]; then
                 gd="${gd#gitdir: }"
@@ -245,6 +246,10 @@ function git_prompt {
         d="${d%/*}"
     done
     [[ -z "$gd" || ! -f "$gd/HEAD" ]] && return
+    if [[ "$git_file" == true && ! -f "$gd/commondir" ]]; then
+        _git_prompt_out="[hub] "
+        return
+    fi
 
     local head line oid=""
     read -r head < "$gd/HEAD"
