@@ -563,6 +563,18 @@ function Set-PowerShellSettings() {
     [Environment]::SetEnvironmentVariable("POWERSHELL_UPDATECHECK", "Off", "User")
 }
 
+function Set-EnvVars() {
+    $envJson = Join-Path $RepoRoot "env.json"
+    if (-not (Test-Path $envJson)) { return }
+    $vars = Get-Content $envJson -Raw | ConvertFrom-Json
+    foreach ($var in $vars) {
+        $existing = [Environment]::GetEnvironmentVariable($var.name, "User")
+        if ($null -eq $existing) {
+            [Environment]::SetEnvironmentVariable($var.name, $var.value, "User")
+        }
+    }
+}
+
 function Invoke-PerformanceTweak {
     fsutil behavior set DisableLastAccess 1
     fsutil 8dot3name set C: 1
@@ -705,6 +717,7 @@ Set-LockScreenSettings
 Disable-ContentDelivery
 Set-PowerShellProfile
 Set-PowerShellSettings
+Set-EnvVars
 Set-PrivacySettings
 Set-XdgPaths
 

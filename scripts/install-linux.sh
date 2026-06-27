@@ -312,6 +312,24 @@ fi
 
 command -v xdg-user-dirs-update >/dev/null 2>&1 && run_as_user xdg-user-dirs-update
 
+install_env_vars() {
+    local env_file="$HOMEDIR/.env.sh"
+    local env_json="$SCRIPT_DIR/env.json"
+
+    [[ -f "$env_json" ]] || return 0
+
+    run_as_user touch "$env_file"
+
+    local name value
+    while IFS=$'\t' read -r name value; do
+        if ! grep -q "^export ${name}=" "$env_file"; then
+            printf 'export %s="%s"\n' "$name" "$value" >>"$env_file"
+        fi
+    done < <(jq -r '.[] | [.name, .value] | @tsv' "$env_json")
+}
+
+install_env_vars
+
 _git_cfg="$HOMEDIR/.config/git/local"
 _allowed_signers="$HOMEDIR/.config/git/allowed_signers"
 
