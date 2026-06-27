@@ -7,11 +7,14 @@ CRED_DIR="/etc/credstore"
 
 store_credential() {
     local name="$1" prompt="$2" secret="${3:-false}"
-    local flags="-rp"
-    [[ "$secret" == true ]] && flags="-rsp"
-    read $flags "  $prompt: " val
-    [[ "$secret" == true ]] && echo
-    printf '%s' "$val" | sudo tee "$CRED_DIR/$name" > /dev/null
+    local val
+    if [[ "$secret" == true ]]; then
+        read -rsp "  $prompt: " val
+        echo
+    else
+        read -rp "  $prompt: " val
+    fi
+    printf '%s' "$val" | sudo tee "$CRED_DIR/$name" >/dev/null
     sudo chmod 600 "$CRED_DIR/$name"
 }
 

@@ -213,8 +213,8 @@ if $_is_ubuntu && $_is_root; then
     )
 
     if ! is_wsl; then
-        packages=( "${packages[@]/aardvark-dns}" )
-        packages=( "${packages[@]/netavark}" )
+        packages=("${packages[@]/aardvark-dns/}")
+        packages=("${packages[@]/netavark/}")
     fi
 
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${packages[@]}"
@@ -380,7 +380,7 @@ if command -v code &>/dev/null; then
         while IFS= read -r ext; do
             [[ -z "$ext" || "$ext" == \#* ]] && continue
             run_as_user code --install-extension "$ext" --force 2>/dev/null || true
-        done < "$_ext_file"
+        done <"$_ext_file"
     fi
     run_as_user git config -f "$_git_cfg" core.editor "code --wait"
 elif command -v nvim &>/dev/null; then
@@ -459,7 +459,7 @@ download_and_install_binary() {
 
 if $_is_ubuntu && $_is_root; then
     _arch=$(dpkg --print-architecture)
-    [[  "$_arch" == "amd64" || "$_arch" == "arm64" ]] || {
+    [[ "$_arch" == "amd64" || "$_arch" == "arm64" ]] || {
         echo "unsupported arch: $_arch" >&2
         exit 1
     }
@@ -559,8 +559,8 @@ UNIT
         else
             sudo -u "$USERNAME" -H \
                 env XDG_RUNTIME_DIR="/run/user/$uid" \
-                    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-                    KIND_EXPERIMENTAL_PROVIDER=podman \
+                DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+                KIND_EXPERIMENTAL_PROVIDER=podman \
                 systemd-run --scope --user -p Delegate=yes kind "$@"
         fi
     }
@@ -590,7 +590,7 @@ UNIT
 
     if [[ -f "$user_cfg" ]]; then
         tmp_merged=$(mktemp)
-        sudo -u "$USERNAME" -H env "KUBECONFIG=${tmp_kind_cfg}:${user_cfg}" kubectl config view --flatten >"$tmp_merged"
+        sudo -u "$USERNAME" -H env "KUBECONFIG=${tmp_kind_cfg}:${user_cfg}" kubectl config view --flatten | tee "$tmp_merged" >/dev/null
         install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_merged" "$user_cfg"
     else
         install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_kind_cfg" "$user_cfg"
