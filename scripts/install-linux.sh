@@ -267,7 +267,7 @@ _link_owner=""
 if $_is_root; then _link_owner="$USERNAME"; fi
 
 run_as_user mkdir -p "$HOMEDIR/.ssh"
-$_is_root && chown "$USERNAME:" "$HOMEDIR/.ssh" || true
+if $_is_root; then chown "$USERNAME:" "$HOMEDIR/.ssh"; fi
 chmod 700 "$HOMEDIR/.ssh"
 
 if is_wsl; then
