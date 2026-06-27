@@ -346,7 +346,7 @@ function set_prompt {
 }
 
 PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;}; }"
-PROMPT_COMMAND+='__prompt_exit=$?; history -a; set_prompt'
+PROMPT_COMMAND+='__prompt_exit=$?; set_prompt'
 
 ###############################################################################
 # .NET
