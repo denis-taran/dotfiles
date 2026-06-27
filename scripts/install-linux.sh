@@ -319,6 +319,7 @@ install_env_vars() {
     [[ -f "$env_json" ]] || return 0
 
     run_as_user touch "$env_file"
+    chmod 600 "$env_file"
 
     local name value
     while IFS=$'\t' read -r name value; do
@@ -373,6 +374,13 @@ if [[ "$_git_cfg_list" != *"user.signingkey="* ]]; then
 fi
 
 if command -v code &>/dev/null; then
+    _ext_file="$SCRIPT_DIR/.config/Code/User/extensions.txt"
+    if [[ -f "$_ext_file" ]]; then
+        while IFS= read -r ext; do
+            [[ -z "$ext" || "$ext" == \#* ]] && continue
+            run_as_user code --install-extension "$ext" --force 2>/dev/null || true
+        done < "$_ext_file"
+    fi
     run_as_user git config -f "$_git_cfg" core.editor "code --wait"
 elif command -v nvim &>/dev/null; then
     run_as_user git config -f "$_git_cfg" core.editor "nvim"

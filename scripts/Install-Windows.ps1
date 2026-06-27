@@ -80,6 +80,17 @@ function Install-DotFiles() {
     Set-Link -LinkPath "$Env:UserProfile/.editorconfig" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.editorconfig')
 }
 
+function Install-VsCodeExtensions() {
+    if (-not (Get-Command code -ErrorAction SilentlyContinue)) { return }
+    $extFile = Join-Path $RepoRoot '.config\Code\User\extensions.txt'
+    if (-not (Test-Path $extFile)) { return }
+    foreach ($ext in Get-Content $extFile) {
+        $ext = $ext.Trim()
+        if (-not $ext -or $ext.StartsWith('#')) { continue }
+        & code --install-extension $ext --force 2>$null
+    }
+}
+
 function Set-GitLocalConfig() {
     $gitLocalConfig = Join-Path -Path $Env:UserProfile -ChildPath '.config\git\local'
     $allowedSigners = Join-Path -Path $Env:UserProfile -ChildPath '.config\git\allowed_signers'
@@ -664,6 +675,10 @@ function Set-XdgPaths() {
 function Uninstall-OneDrive() {
     Write-Host "Uninstalling OneDrive..."
     winget uninstall -e --id Microsoft.OneDrive --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "OneDrive uninstall failed. Skipping folder removal."
+        return
+    }
     Remove-Item -Path "$env:USERPROFILE\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
@@ -703,6 +718,7 @@ $IsWorkMachine = $workAnswer -eq 'y'
 Backup-Registry
 Install-DotFiles
 if ($IsAdmin -and -not $IsWorkMachine) { Install-Apps }
+Install-VsCodeExtensions
 Set-GitLocalConfig
 Set-Keyboard
 Set-NoSoundScheme

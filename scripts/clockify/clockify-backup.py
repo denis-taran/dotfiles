@@ -8,9 +8,10 @@ from datetime import date
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-API_KEY = os.environ["CLOCKIFY_API_KEY"]
-WORKSPACE_ID = os.environ["CLOCKIFY_WORKSPACE_ID"]
-USER_ID = os.environ["CLOCKIFY_USER_ID"]
+CRED_DIR = Path(os.environ["CREDENTIALS_DIRECTORY"])
+API_KEY = (CRED_DIR / "clockify-api-key").read_text().strip()
+WORKSPACE_ID = (CRED_DIR / "clockify-workspace-id").read_text().strip()
+USER_ID = (CRED_DIR / "clockify-user-id").read_text().strip()
 BACKUP_DIR = Path.home() / "Backups" / "Clockify"
 BASE_URL = "https://api.clockify.me/api/v1"
 
