@@ -12,6 +12,6 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get install -y shellcheck shfmt
       - run: |
-          files=".bashrc .bash_profile $(shfmt -f .)"
+          files=".bashrc .bash_profile .profile $(shfmt -f .)"
           shellcheck -e SC1091 $files
           shfmt -d $files

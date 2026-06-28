@@ -18,7 +18,7 @@ store_credential() {
     sudo chmod 600 "$CRED_DIR/$name"
 }
 
-sudo mkdir -p "$CRED_DIR"
+sudo install -d -m 700 "$CRED_DIR"
 
 echo "Enter Clockify credentials:"
 store_credential clockify-api-key "API key" true
