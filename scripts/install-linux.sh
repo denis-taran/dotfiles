@@ -499,12 +499,12 @@ install_aws_cli() {
     local arch="$1"
     local arch_label
     case "$arch" in
-        amd64) arch_label="x86_64" ;;
-        arm64) arch_label="aarch64" ;;
-        *)
-            echo "unsupported arch for aws cli: $arch" >&2
-            return 1
-            ;;
+    amd64) arch_label="x86_64" ;;
+    arm64) arch_label="aarch64" ;;
+    *)
+        echo "unsupported arch for aws cli: $arch" >&2
+        return 1
+        ;;
     esac
 
     local keyfile="$SCRIPT_DIR/scripts/keys/aws-cli.asc"
