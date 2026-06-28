@@ -93,7 +93,7 @@ function Install-VsCodeExtensions() {
     foreach ($ext in Get-Content $extFile) {
         $ext = $ext.Trim()
         if (-not $ext -or $ext.StartsWith('#')) { continue }
-        & code --install-extension $ext --force 2>$null
+        & cmd /c "code --install-extension $ext --force >nul 2>nul"
     }
 }
 
