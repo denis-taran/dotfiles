@@ -12,7 +12,7 @@ ExecStart=/home/%i/Code/dotfiles/services/storage/s3-backup.sh
 # Sandboxing
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=%h/Backups
+ReadWritePaths=/home/%i/Backups
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectProc=invisible

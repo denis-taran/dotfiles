@@ -14,7 +14,7 @@ ExecStart=/home/%i/Code/dotfiles/services/database/db-backup.sh
 # Sandboxing
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=%h/Backups
+ReadWritePaths=/home/%i/Backups
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectProc=invisible

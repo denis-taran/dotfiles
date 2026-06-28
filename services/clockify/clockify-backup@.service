@@ -12,7 +12,7 @@ ExecStart=python3 /home/%i/Code/dotfiles/services/clockify/clockify-backup.py
 # Sandboxing
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=%h/Backups
+ReadWritePaths=/home/%i/Backups
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectProc=invisible
