@@ -660,16 +660,6 @@ function Set-XdgPaths() {
         "XDG_STATE_HOME",
         (Join-Path $env:USERPROFILE ".local\state"),
         "User")
-
-    $wslenv = [Environment]::GetEnvironmentVariable("WSLENV", "User")
-    $entries = if ($wslenv) { $wslenv -split ':' } else { @() }
-    if ($entries -notcontains "USERPROFILE/p") {
-        $entries += "USERPROFILE/p"
-        [Environment]::SetEnvironmentVariable(
-            "WSLENV",
-            ($entries -join ':'),
-            "User")
-    }
 }
 
 function Uninstall-OneDrive() {
@@ -702,6 +692,19 @@ function Backup-Registry() {
     }
 }
 
+function Set-CodeFolderPermissions() {
+    $codeDir = Join-Path $env:USERPROFILE 'Code'
+    New-Item -ItemType Directory -Path $codeDir -Force | Out-Null
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    & icacls $codeDir /inheritance:r `
+        /grant:r "${me}:(OI)(CI)F" `
+        "*S-1-5-18:(OI)(CI)F" `
+        "*S-1-5-32-544:(OI)(CI)F" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Failed to restrict permissions on $codeDir"
+    }
+}
+
 Write-Warning @"
 This script will make destructive and irreversible changes to this machine,
 including deleting apps, mutating hundreds of registry keys and disabling services.
@@ -717,6 +720,7 @@ $IsWorkMachine = $workAnswer -eq 'y'
 
 Backup-Registry
 Install-DotFiles
+Set-CodeFolderPermissions
 if ($IsAdmin -and -not $IsWorkMachine) { Install-Apps }
 Install-VsCodeExtensions
 Set-GitLocalConfig

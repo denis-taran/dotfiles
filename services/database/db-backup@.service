@@ -10,3 +10,25 @@ LoadCredential=db-name:/etc/credstore/db-name
 LoadCredential=db-user:/etc/credstore/db-user
 LoadCredential=db-password:/etc/credstore/db-password
 ExecStart=/home/%i/Code/dotfiles/services/database/db-backup.sh
+
+# Sandboxing
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/Backups
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectProc=invisible
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM

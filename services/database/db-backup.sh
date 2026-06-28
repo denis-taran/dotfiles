@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+umask 077
+
 CRED_DIR="$CREDENTIALS_DIRECTORY"
 DB_HOST="$(<"$CRED_DIR/db-host")"
 DB_PORT="$(<"$CRED_DIR/db-port")"
@@ -14,6 +16,7 @@ export PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt
 
 BACKUP_DIR="$HOME/Backups/Database"
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
 
 FILENAME="$(date +'%Y-%m-%dT%H-%M-%S').dump"
 TMP_FILE="$BACKUP_DIR/$FILENAME.tmp"

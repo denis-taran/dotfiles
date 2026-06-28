@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 CRED_DIR="$CREDENTIALS_DIRECTORY"
 AWS_ACCESS_KEY_ID="$(<"$CRED_DIR/s3-access-key")"
 AWS_SECRET_ACCESS_KEY="$(<"$CRED_DIR/s3-secret-key")"
 AWS_DEFAULT_REGION="$(<"$CRED_DIR/s3-region")"
 export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
-export PATH="/snap/bin:$PATH"
 
 BACKUP_DIR="$HOME/Backups/S3"
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT

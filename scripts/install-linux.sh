@@ -36,6 +36,7 @@ readonly _HELM_GPG_FP="DDF78C3E6EBB2D2CC223C95C62BA89D07698DBC6"
 readonly _TERRAFORM_GPG_FP="798AEC654E5C15428C8E42EEAA16FCBCA621E701"
 readonly _1PASSWORD_GPG_FP="3FEF9748469ADBE15DA7CA80AC2D62742012EA22"
 readonly _CLAUDE_GPG_FP="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
+readonly _AWS_CLI_GPG_FP="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"
 
 _is_root=false
 [ "$EUID" -eq 0 ] && _is_root=true
@@ -149,6 +150,9 @@ create_link() {
 run_as_user mkdir -p "$HOMEDIR/.config"
 run_as_user touch "$HOMEDIR/.hushlogin"
 
+run_as_user mkdir -p "$HOMEDIR/Code"
+chmod 700 "$HOMEDIR/Code"
+
 if $_is_ubuntu && $_is_root; then
     apt-get update
 
@@ -225,7 +229,6 @@ if $_is_ubuntu && $_is_root; then
 
     sudo -u "$USERNAME" -H git lfs install
 
-    snap list aws-cli >/dev/null 2>&1 || snap install aws-cli --classic
     snap list node >/dev/null 2>&1 || snap install node --classic --channel="$NODE_SNAP_CHANNEL"
 
     # pipx becuase the ansible PPA is perpetually broken on new ubuntu releases
@@ -270,11 +273,16 @@ run_as_user mkdir -p "$HOMEDIR/.ssh"
 if $_is_root; then chown "$USERNAME:" "$HOMEDIR/.ssh"; fi
 chmod 700 "$HOMEDIR/.ssh"
 
-if is_wsl; then
-    if [[ -z "${USERPROFILE:-}" ]]; then
-        echo "USERPROFILE not set" >&2
-        exit 1
+USERPROFILE="${USERPROFILE:-}"
+if is_wsl && command -v powershell.exe >/dev/null 2>&1; then
+    _win_home="$(powershell.exe -NoProfile -NonInteractive \
+        -Command '[Environment]::GetFolderPath("UserProfile")' 2>/dev/null | tr -d '\r' || true)"
+    if [[ -n "$_win_home" ]]; then
+        USERPROFILE="$(wslpath -u "$_win_home" 2>/dev/null || true)"
     fi
+fi
+
+if is_wsl; then
     _win_ssh="$USERPROFILE/.ssh"
     if [[ ! -d "$_win_ssh" ]]; then
         echo "Windows ~/.ssh not found at $_win_ssh" >&2
@@ -457,12 +465,78 @@ download_and_install_binary() {
     install -m 0755 "$dlfile" "$dest"
 }
 
+verify_pgp_signature() {
+    local keyfile="$1" sigfile="$2" target="$3" expected_fp="${4:-}"
+    if [[ ! -f "$keyfile" ]]; then
+        echo "public key not found: $keyfile" >&2
+        return 1
+    fi
+
+    local gnupghome rc=0
+    gnupghome=$(mktemp -d)
+    chmod 700 "$gnupghome"
+
+    GNUPGHOME="$gnupghome" gpg --batch --quiet --import "$keyfile" || rc=1
+
+    if [[ $rc -eq 0 && -n "$expected_fp" ]]; then
+        if ! GNUPGHOME="$gnupghome" gpg --batch --with-colons --fingerprint 2>/dev/null |
+            awk -F: '$1=="fpr"{print $10}' |
+            grep -qi "^${expected_fp}$"; then
+            echo "fingerprint mismatch: expected $expected_fp" >&2
+            rc=1
+        fi
+    fi
+
+    if [[ $rc -eq 0 ]]; then
+        GNUPGHOME="$gnupghome" gpg --batch --verify "$sigfile" "$target" || rc=1
+    fi
+
+    rm -rf "$gnupghome"
+    return $rc
+}
+
+install_aws_cli() {
+    local arch="$1"
+    local arch_label
+    case "$arch" in
+        amd64) arch_label="x86_64" ;;
+        arm64) arch_label="aarch64" ;;
+        *)
+            echo "unsupported arch for aws cli: $arch" >&2
+            return 1
+            ;;
+    esac
+
+    local keyfile="$SCRIPT_DIR/scripts/keys/aws-cli.asc"
+
+    local workdir
+    workdir=$(mktemp -d)
+    trap 'rm -rf "$workdir"; trap - RETURN' RETURN
+
+    local url="https://awscli.amazonaws.com/awscli-exe-linux-${arch_label}.zip"
+    curl -fsSL -o "$workdir/awscliv2.zip" "$url"
+    curl -fsSL -o "$workdir/awscliv2.sig" "$url.sig"
+
+    if ! verify_pgp_signature "$keyfile" "$workdir/awscliv2.sig" \
+        "$workdir/awscliv2.zip" "$_AWS_CLI_GPG_FP"; then
+        echo "aws cli signature verification failed" >&2
+        return 1
+    fi
+
+    unzip -q -o -d "$workdir" "$workdir/awscliv2.zip"
+
+    "$workdir/aws/install" --bin-dir /usr/local/bin \
+        --install-dir /usr/local/aws-cli --update
+}
+
 if $_is_ubuntu && $_is_root; then
     _arch=$(dpkg --print-architecture)
     [[ "$_arch" == "amd64" || "$_arch" == "arm64" ]] || {
         echo "unsupported arch: $_arch" >&2
         exit 1
     }
+
+    install_aws_cli "$_arch"
 
     # azcli snap is community-published
     _codename=$(apt_key "https://packages.microsoft.com/keys/microsoft.asc" "/etc/apt/keyrings/microsoft.gpg" \

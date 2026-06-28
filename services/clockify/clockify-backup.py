@@ -8,6 +8,8 @@ from datetime import date
 from pathlib import Path
 from urllib.request import Request, urlopen
 
+os.umask(0o077)
+
 CRED_DIR = Path(os.environ["CREDENTIALS_DIRECTORY"])
 API_KEY = (CRED_DIR / "clockify-api-key").read_text().strip()
 WORKSPACE_ID = (CRED_DIR / "clockify-workspace-id").read_text().strip()
@@ -20,6 +22,7 @@ json_file = BACKUP_DIR / f"backup_{today}.json"
 csv_file = BACKUP_DIR / f"backup_{today}.csv"
 
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+BACKUP_DIR.chmod(0o700)
 
 if json_file.exists() and csv_file.exists():
     sys.exit(0)
