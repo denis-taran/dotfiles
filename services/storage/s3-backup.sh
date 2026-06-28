@@ -2,9 +2,10 @@
 set -euo pipefail
 
 CRED_DIR="$CREDENTIALS_DIRECTORY"
-export AWS_ACCESS_KEY_ID="$(<"$CRED_DIR/s3-access-key")"
-export AWS_SECRET_ACCESS_KEY="$(<"$CRED_DIR/s3-secret-key")"
-export AWS_DEFAULT_REGION="$(<"$CRED_DIR/s3-region")"
+AWS_ACCESS_KEY_ID="$(<"$CRED_DIR/s3-access-key")"
+AWS_SECRET_ACCESS_KEY="$(<"$CRED_DIR/s3-secret-key")"
+AWS_DEFAULT_REGION="$(<"$CRED_DIR/s3-region")"
+export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
 export PATH="/snap/bin:$PATH"
 
 BACKUP_DIR="$HOME/Backups/S3"
