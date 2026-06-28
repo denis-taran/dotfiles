@@ -7,7 +7,7 @@ current_month="$(date +'%Y-%m')"
 previous_month="$(date -d '1 month ago' +'%Y-%m')"
 
 shopt -s nullglob
-for file in "$BACKUP_DIR"/*.dump; do
+for file in "$BACKUP_DIR"/*.dump.age; do
     basename="$(basename "$file")"
     file_month="${basename:0:7}"
 

@@ -172,6 +172,7 @@ if $_is_ubuntu && $_is_root; then
 
     packages=(
         "aardvark-dns"
+        "age"
         "bash-completion"
         "bat"
         "bind9-dnsutils"

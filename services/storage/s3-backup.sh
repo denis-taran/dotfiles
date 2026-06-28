@@ -8,6 +8,8 @@ AWS_SECRET_ACCESS_KEY="$(<"$CRED_DIR/s3-secret-key")"
 AWS_DEFAULT_REGION="$(<"$CRED_DIR/s3-region")"
 export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
 
+ENCRYPTION_PUB_KEY="$(<"$CRED_DIR/encryption-pub-key")"
+
 BACKUP_DIR="$HOME/Backups/S3"
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
@@ -22,10 +24,11 @@ for bucket in $buckets; do
     aws s3 sync "s3://$bucket" "$TMP_DIR/$bucket" --quiet
 done
 
-FILENAME="$(date +'%Y-%m-%dT%H-%M-%S').zip"
+FILENAME="$(date +'%Y-%m-%dT%H-%M-%S').zip.age"
 TMP_FILE="$BACKUP_DIR/$FILENAME.tmp"
 
-(cd "$TMP_DIR" && zip -1 -r -q "$TMP_FILE" .)
+(cd "$TMP_DIR" && zip -1 -r -q - .) |
+    age -r "$ENCRYPTION_PUB_KEY" -o "$TMP_FILE"
 
 mv "$TMP_FILE" "$BACKUP_DIR/$FILENAME"
 echo "Backup saved to $BACKUP_DIR/$FILENAME"

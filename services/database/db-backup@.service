@@ -9,6 +9,7 @@ LoadCredential=db-port:/etc/credstore/db-port
 LoadCredential=db-name:/etc/credstore/db-name
 LoadCredential=db-user:/etc/credstore/db-user
 LoadCredential=db-password:/etc/credstore/db-password
+LoadCredential=encryption-pub-key:/etc/credstore/db-encryption-pub-key
 ExecStart=/home/%i/Code/dotfiles/services/database/db-backup.sh
 
 # Sandboxing
