@@ -273,27 +273,42 @@ run_as_user mkdir -p "$HOMEDIR/.ssh"
 if $_is_root; then chown "$USERNAME:" "$HOMEDIR/.ssh"; fi
 chmod 700 "$HOMEDIR/.ssh"
 
-USERPROFILE="${USERPROFILE:-}"
-if is_wsl && command -v powershell.exe >/dev/null 2>&1; then
-    _win_home="$(powershell.exe -NoProfile -NonInteractive \
-        -Command '[Environment]::GetFolderPath("UserProfile")' 2>/dev/null | tr -d '\r' || true)"
-    if [[ -n "$_win_home" ]]; then
-        USERPROFILE="$(wslpath -u "$_win_home" 2>/dev/null || true)"
+get_windows_home() {
+    local cmd='/mnt/c/Windows/System32/cmd.exe' win_profile
+
+    [[ -x "$cmd" ]] || return 127
+
+    win_profile="$(
+        cd /mnt/c || exit 1
+        "$cmd" /d /q /c 'echo %USERPROFILE%'
+    )" || return 1
+    win_profile="${win_profile%$'\r'}"
+
+    [[ "$win_profile" =~ ^[A-Za-z]:\\ ]] || return 1
+
+    wslpath -u "$win_profile"
+}
+
+USERPROFILE=""
+if is_wsl; then
+    USERPROFILE="$(get_windows_home || true)"
+    if [[ -z "$USERPROFILE" ]]; then
+        echo "Could not locate Windows user profile. Skipping Windows links and SSH import." >&2
     fi
 fi
 
-if is_wsl; then
+if is_wsl && [[ -n "$USERPROFILE" ]]; then
     _win_ssh="$USERPROFILE/.ssh"
-    if [[ ! -d "$_win_ssh" ]]; then
-        echo "Windows ~/.ssh not found at $_win_ssh" >&2
-        exit 1
+    if [[ -d "$_win_ssh" ]]; then
+        for _f in "$_win_ssh"/*; do
+            [[ -f "$_f" ]] || continue
+            _name="$(basename "$_f")"
+            run_as_user cp "$_f" "$HOMEDIR/.ssh/$_name"
+            chmod 600 "$HOMEDIR/.ssh/$_name"
+        done
+    else
+        echo "Windows ~/.ssh not found at $_win_ssh. Skipping SSH import." >&2
     fi
-    for _f in "$_win_ssh"/*; do
-        [[ -f "$_f" ]] || continue
-        _name="$(basename "$_f")"
-        run_as_user cp "$_f" "$HOMEDIR/.ssh/$_name"
-        chmod 600 "$HOMEDIR/.ssh/$_name"
-    done
 fi
 for src in "${!links[@]}"; do
     dest="${links[$src]}"
