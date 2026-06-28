@@ -1,0 +1,9 @@
+[Unit]
+Description=Run S3 backup monthly on the 1st at 20:00
+
+[Timer]
+OnCalendar=*-*-01 20:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
