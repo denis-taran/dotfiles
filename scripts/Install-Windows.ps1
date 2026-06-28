@@ -3,9 +3,15 @@ $ErrorActionPreference = "Stop"
 
 $scriptPath = $MyInvocation.MyCommand.Definition
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-$CanSymlink = $IsAdmin -or (
-    (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" -ErrorAction SilentlyContinue).AllowDevelopmentWithoutDevLicense -eq 1
-)
+$CanSymlink = $IsAdmin -or (& {
+    try {
+        $key = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"
+        (Get-ItemProperty -Path $key -Name AllowDevelopmentWithoutDevLicense `
+            -ErrorAction Stop).AllowDevelopmentWithoutDevLicense -eq 1
+    } catch {
+        $false
+    }
+})
 $CanEditRegistry = & {
     $testPath = 'HKCU:\Software\_RegistryWriteTest'
     try {
