@@ -3,7 +3,7 @@ set -euo pipefail
 
 BACKUP_DIR="${1:?Usage: code-cleanup.sh <backup-dir>}"
 
-current_ym=$(( 10#$(date +'%Y') * 12 + 10#$(date +'%m') ))
+current_ym=$((10#$(date +'%Y') * 12 + 10#$(date +'%m')))
 
 declare -A kept_month kept_year
 
@@ -13,13 +13,13 @@ for file in "$BACKUP_DIR"/*.zip.age; do
     year="${basename:0:4}"
     month="${basename:5:2}"
 
-    file_ym=$(( 10#$year * 12 + 10#$month ))
-    age=$(( current_ym - file_ym ))
+    file_ym=$((10#$year * 12 + 10#$month))
+    age=$((current_ym - file_ym))
 
-    if (( age <= 1 )); then
+    if ((age <= 1)); then
         # keep every backup in the current and prev. month
         continue
-    elif (( age <= 6 )); then
+    elif ((age <= 6)); then
         # keep one backup per month when it's 2 - 6 months old
         key="$year-$month"
         if [[ -n "${kept_month[$key]:-}" ]]; then
