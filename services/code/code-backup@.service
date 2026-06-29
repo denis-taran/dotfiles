@@ -1,0 +1,33 @@
+[Unit]
+Description=Code folder backup
+
+[Service]
+Type=oneshot
+User=%i
+LoadCredential=encryption-pub-key:/etc/credstore/code-encryption-pub-key
+ExecStart=/usr/local/libexec/dotfiles/code-backup.sh
+
+# Sandboxing
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/%i/Backups
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectProc=invisible
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+SystemCallErrorNumber=EPERM
+MemoryDenyWriteExecute=true
+UMask=0077
