@@ -1,5 +1,7 @@
 [Unit]
 Description=Clockify time entries backup
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
@@ -7,7 +9,7 @@ User=%i
 LoadCredential=clockify-api-key:/etc/credstore/clockify-api-key
 LoadCredential=clockify-workspace-id:/etc/credstore/clockify-workspace-id
 LoadCredential=clockify-user-id:/etc/credstore/clockify-user-id
-ExecStart=python3 /home/%i/Code/dotfiles/services/clockify/clockify-backup.py
+ExecStart=/usr/bin/python3 /usr/local/libexec/dotfiles/clockify-backup.py
 
 # Sandboxing
 ProtectSystem=strict

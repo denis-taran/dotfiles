@@ -1,5 +1,7 @@
 [Unit]
 Description=Amazon S3 storage backup
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
@@ -8,7 +10,7 @@ LoadCredential=s3-access-key:/etc/credstore/s3-access-key
 LoadCredential=s3-secret-key:/etc/credstore/s3-secret-key
 LoadCredential=s3-region:/etc/credstore/s3-region
 LoadCredential=encryption-pub-key:/etc/credstore/s3-encryption-pub-key
-ExecStart=/home/%i/Code/dotfiles/services/storage/s3-backup.sh
+ExecStart=/usr/local/libexec/dotfiles/s3-backup.sh
 
 # Sandboxing
 ProtectSystem=strict

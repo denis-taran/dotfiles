@@ -66,6 +66,12 @@ function Set-Link($TargetPath, $LinkPath) {
     }
 }
 
+function Copy-File ($TargetPath, $DestPath) {
+    $parent = Split-Path $DestPath
+    if ($parent) { $null = New-Item -Path $parent -ItemType Directory -Force }
+    Copy-Item -LiteralPath $TargetPath -Destination $DestPath -Force
+}
+
 function Install-DotFiles() {
     $vsSettings = Resolve-Path `
         "$env:LOCALAPPDATA\Microsoft\VisualStudio\[0-9]*\settings.json" `
@@ -78,7 +84,8 @@ function Install-DotFiles() {
         Set-Link -LinkPath $vsSettings -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\vs\settings.json')
     }
 
-    Set-Link -LinkPath "$Env:APPDATA\Code\User\settings.json" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\Code\User\settings.json')
+    # Copied instead of linking, because VSCode self-edits would dirty the repo
+    Copy-File -DestPath "$Env:APPDATA\Code\User\settings.json" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\Code\User\settings.json')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/attributes" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\attributes')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/ignore" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\ignore')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/config" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\config')

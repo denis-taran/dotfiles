@@ -1,5 +1,7 @@
 [Unit]
 Description=Production database backup
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
@@ -10,7 +12,7 @@ LoadCredential=db-name:/etc/credstore/db-name
 LoadCredential=db-user:/etc/credstore/db-user
 LoadCredential=db-password:/etc/credstore/db-password
 LoadCredential=encryption-pub-key:/etc/credstore/db-encryption-pub-key
-ExecStart=/home/%i/Code/dotfiles/services/database/db-backup.sh
+ExecStart=/usr/local/libexec/dotfiles/db-backup.sh
 
 # Sandboxing
 ProtectSystem=strict

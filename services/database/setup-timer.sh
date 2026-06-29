@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UNIT_DIR="/etc/systemd/system"
 CRED_DIR="/etc/credstore"
+LIBEXEC_DIR="/usr/local/libexec/dotfiles"
 
 store_credential() {
     local name="$1" prompt="$2" secret="${3:-false}"
@@ -42,6 +43,10 @@ store_credential db-password "Password" true
 
 echo "Enter backup encryption key:"
 store_encryption_pub_key db-encryption-pub-key
+
+sudo install -d -o root -g root -m 0755 "$LIBEXEC_DIR"
+sudo install -o root -g root -m 0755 "$SCRIPT_DIR/db-backup.sh" "$LIBEXEC_DIR/"
+sudo install -o root -g root -m 0755 "$SCRIPT_DIR/db-cleanup.sh" "$LIBEXEC_DIR/"
 
 sudo cp "$SCRIPT_DIR/db-backup@.service" "$UNIT_DIR/"
 sudo cp "$SCRIPT_DIR/db-backup@.timer" "$UNIT_DIR/"

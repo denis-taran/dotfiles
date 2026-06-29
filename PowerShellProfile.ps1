@@ -1,3 +1,10 @@
+
+$_nonInteractive = [Environment]::GetCommandLineArgs() |
+    Where-Object { $_ -match '^-(NonInteractive|noni|Command|c|File|f|EncodedCommand|e|ec)$' }
+if ($_nonInteractive -or -not [Environment]::UserInteractive) {
+    return
+}
+
 Set-StrictMode -Version 3.0
 
 ###############################################################################
