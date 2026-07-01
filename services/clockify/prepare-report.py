@@ -2,7 +2,6 @@
 
 import csv
 import json
-import os
 import re
 import sys
 from collections import defaultdict
@@ -14,9 +13,9 @@ from zoneinfo import ZoneInfo
 
 REPORT_DIR = Path.home() / "Desktop"
 
-API_KEY = os.environ["CLOCKIFY_API_KEY"]
-WORKSPACE_ID = os.environ["CLOCKIFY_WORKSPACE_ID"]
-USER_ID = os.environ["CLOCKIFY_USER_ID"]
+API_KEY = input("Clockify API key: ").strip()
+WORKSPACE_ID = input("Clockify workspace ID: ").strip()
+USER_ID = input("Clockify user ID: ").strip()
 TIMEZONE = ZoneInfo("Europe/Berlin")
 BASE_URL = "https://api.clockify.me/api/v1"
 

@@ -97,9 +97,13 @@ function Install-VsCodeExtensions() {
     if (-not (Get-Command code -ErrorAction SilentlyContinue)) { return }
     $extFile = Join-Path $RepoRoot '.config\Code\User\extensions.txt'
     if (-not (Test-Path $extFile)) { return }
-    foreach ($ext in Get-Content $extFile) {
-        $ext = $ext.Trim()
-        if (-not $ext -or $ext.StartsWith('#')) { continue }
+
+    $requested = Get-Content $extFile |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -and -not $_.StartsWith('#') }
+
+    foreach ($ext in $requested) {
+        Write-Host "install extension '$ext'"
         & cmd /c "code --install-extension $ext --force >nul 2>nul"
     }
 }
@@ -695,13 +699,23 @@ function Backup-File($Path) {
 }
 
 function Backup-Registry() {
+    if (-not $CanEditRegistry) {
+        Write-Warning "Registry editing is not allowed by policy and will be skipped."
+        return
+    }
     $ts = Get-Date -Format "yyyy-MM-dd HH-mm-ss"
     $backupDir = Join-Path $HOME "Backups\Windows\$ts - Registry"
     New-Item $backupDir -ItemType Directory -Force | Out-Null
     Write-Host "Backing up registry to $backupDir ..."
-    reg export HKCU "$backupDir\HKCU.reg" /y
+    & cmd /c "reg export HKCU `"$backupDir\HKCU.reg`" /y >nul 2>nul"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Failed to back up HKCU."
+    }
     if ($IsAdmin) {
-        reg export HKLM "$backupDir\HKLM.reg" /y
+        & cmd /c "reg export HKLM `"$backupDir\HKLM.reg`" /y >nul 2>nul"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Failed to back up HKLM."
+        }
     }
 }
 
@@ -735,7 +749,9 @@ Backup-Registry
 Install-DotFiles
 Set-CodeFolderPermissions
 if ($IsAdmin -and -not $IsWorkMachine) { Install-Apps }
-Install-VsCodeExtensions
+if (-not $IsWorkMachine -or (Read-Host "Install VS Code extensions? (y/n)") -eq 'y') {
+    Install-VsCodeExtensions
+}
 Set-GitLocalConfig
 Set-Keyboard
 Set-NoSoundScheme
