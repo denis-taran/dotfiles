@@ -23,7 +23,7 @@ for file in "$BACKUP_DIR"/*.zip.age; do
         # keep one backup per month when it's 2 - 6 months old
         key="$year-$month"
         if [[ -n "${kept_month[$key]:-}" ]]; then
-            rm "$file"
+            rm -f -- "$file" "$file.par2"
             echo "Removed old backup: $basename"
         else
             kept_month[$key]=1
@@ -31,7 +31,7 @@ for file in "$BACKUP_DIR"/*.zip.age; do
     else
         # keep one backup per year when older than 6 months
         if [[ -n "${kept_year[$year]:-}" ]]; then
-            rm "$file"
+            rm -f -- "$file" "$file.par2"
             echo "Removed old backup: $basename"
         else
             kept_year[$year]=1

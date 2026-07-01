@@ -21,5 +21,11 @@ TMP_FILE="$BACKUP_DIR/$FILENAME.tmp"
 mv "$TMP_FILE" "$BACKUP_DIR/$FILENAME"
 echo "Backup saved to $BACKUP_DIR/$FILENAME"
 
+ARCHIVE="$BACKUP_DIR/$FILENAME"
+par2create -q -n1 -r10 "$ARCHIVE.par2" "$ARCHIVE" >/dev/null
+rm -f -- "$ARCHIVE.par2"
+mv -- "$ARCHIVE".vol*.par2 "$ARCHIVE.par2"
+echo "Recovery data saved to $ARCHIVE.par2"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/cloud-cleanup.sh" "$BACKUP_DIR"

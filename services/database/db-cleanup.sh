@@ -15,7 +15,7 @@ for file in "$BACKUP_DIR"/*.dump.age; do
 
     file_day="${basename:8:2}"
     if [[ "$file_day" != "01" ]]; then
-        rm "$file"
+        rm -f -- "$file" "$file.par2"
         echo "Removed old backup: $basename"
     fi
 done
