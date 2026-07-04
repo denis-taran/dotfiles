@@ -69,6 +69,7 @@ function Set-Link($TargetPath, $LinkPath) {
 function Copy-File ($TargetPath, $DestPath) {
     $parent = Split-Path $DestPath
     if ($parent) { $null = New-Item -Path $parent -ItemType Directory -Force }
+    Backup-File $DestPath
     Copy-Item -LiteralPath $TargetPath -Destination $DestPath -Force
 }
 
@@ -692,7 +693,7 @@ function Uninstall-OneDrive() {
 function Backup-File($Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return }
     $ts = Get-Date -Format "yyyy-MM-dd HH-mm-ss"
-    $backupDir = Join-Path $HOME "Backups\Windows"
+    $backupDir = Join-Path $HOME "Backups"
     New-Item $backupDir -ItemType Directory -Force | Out-Null
     $backupName = "$ts - $(Split-Path $Path -Leaf)"
     Copy-Item -LiteralPath $Path -Destination (Join-Path $backupDir $backupName) -Force

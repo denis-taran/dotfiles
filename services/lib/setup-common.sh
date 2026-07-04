@@ -6,6 +6,12 @@ UNIT_DIR="/etc/systemd/system"
 CRED_DIR="/etc/credstore"
 LIBEXEC_DIR="/usr/local/libexec/dotfiles"
 
+TARGET_USER="${SUDO_USER:-$USER}"
+if [[ "$TARGET_USER" == root ]]; then
+    echo "Run this as your normal user (not root); it calls sudo itself." >&2
+    exit 1
+fi
+
 ensure_credstore() {
     sudo install -d -m 700 "$CRED_DIR"
 }
@@ -60,7 +66,7 @@ install_units() {
     sudo cp "$script_dir/$base@.timer" "$UNIT_DIR/"
 
     sudo systemctl daemon-reload
-    sudo systemctl enable --now "$base@$USER.timer"
+    sudo systemctl enable --now "$base@$TARGET_USER.timer"
 
-    echo "System timer installed for user $USER. Credentials stored in $CRED_DIR."
+    echo "System timer installed for user $TARGET_USER. Credentials stored in $CRED_DIR."
 }
