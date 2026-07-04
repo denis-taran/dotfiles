@@ -88,7 +88,8 @@ portkill() {
     lsof -ti ":$1" | xargs -r kill
 }
 
-p() {
+# Resolve a project (optionally a worktree) to its directory, printed to stdout.
+_p_resolve() {
     local code_dir="$HOME/Code"
     local pdir="$code_dir/${1:?project name required}"
     local wt_list wt_count target
@@ -101,14 +102,14 @@ p() {
 
     wt_list="$(git -C "$pdir" worktree list 2>/dev/null)" ||
         {
-            cd "$pdir" || return
+            printf '%s\n' "$pdir"
             return
         }
 
     wt_count="$(wc -l <<<"$wt_list")"
     ((wt_count > 1)) ||
         {
-            cd "$pdir" || return
+            printf '%s\n' "$pdir"
             return
         }
 
@@ -132,7 +133,19 @@ p() {
             echo "Worktree not found: ${2:-default}" >&2
             return 1
         }
+    printf '%s\n' "$target"
+}
+
+p() {
+    local target
+    target="$(_p_resolve "$@")" || return
     cd "$target" || return
+}
+
+pc() {
+    local target
+    target="$(_p_resolve "$@")" || return
+    code "$target"
 }
 
 _p_completions() {
@@ -154,7 +167,7 @@ _p_completions() {
         fi
     fi
 }
-complete -F _p_completions p
+complete -F _p_completions p pc
 
 ###############################################################################
 # Bash Completions
