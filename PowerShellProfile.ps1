@@ -23,6 +23,7 @@ $env:GIT_OPTIONAL_LOCKS = "0"
 
 
 if (Get-Command eza -ErrorAction SilentlyContinue) {
+    Remove-Item -Path Alias:ls -Force -ErrorAction SilentlyContinue
     function ll { eza -lh --color=auto @args }
     function ls { eza --color=auto @args }
     function lg { eza --git -l --color=auto @args }
@@ -42,6 +43,7 @@ function pbpaste { Get-Clipboard }
 function showpath { $env:PATH -split [IO.Path]::PathSeparator }
 
 Set-Alias -Name g -Value git
+Remove-Item -Path Alias:gc, Alias:gcm, Alias:gl, Alias:gp -Force -ErrorAction SilentlyContinue
 function gc { git commit @args }
 function gcm { git commit -m @args }
 function gwip { git add -A; git commit -m wip }
