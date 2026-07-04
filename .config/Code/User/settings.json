@@ -46,7 +46,8 @@
     "explorer.compactFolders": true,
     "extensions.ignoreRecommendations": true,
     "files.exclude": {
-        "**/.DS_Store": true
+        "**/.DS_Store": true,
+        "**/__pycache__": true
     },
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
@@ -92,5 +93,6 @@
     "workbench.preferredLightColorTheme": "Light 2026",
     "workbench.preferredDarkColorTheme": "Dark 2026",
     "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "fullSolution",
-    "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"
+    "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution",
+    "python.analysis.typeCheckingMode": "basic"
 }

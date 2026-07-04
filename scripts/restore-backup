@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+    printf 'Error: %s\n' "$*" >&2
+    exit 1
+}
+
+for cmd in fd fzf par2 age unzip; do
+    command -v "$cmd" >/dev/null 2>&1 || die "$cmd is required."
+done
+
+BACKUP_ROOT="$HOME/Backups"
+DESKTOP="$HOME/Desktop"
+[[ -d "$BACKUP_ROOT" ]] || die "Backup directory not found: $BACKUP_ROOT"
+
+archive="$(
+    fd --type file '\.zip\.age$' "$BACKUP_ROOT" |
+        fzf --ansi --height=80% --layout=reverse \
+            --prompt='Archive> ' \
+            --header='Select a .zip.age backup to restore. Esc to cancel.' \
+            --preview 'ls -lh {} 2>/dev/null' \
+            --preview-window=up,3,border-bottom \
+            --exit-0
+)" || exit 0
+
+[[ -n "$archive" ]] || exit 0
+[[ -f "$archive" ]] || die "Not a file: $archive"
+
+par2="$archive.par2"
+if [[ -f "$par2" ]]; then
+    printf 'Verifying %s ...\n' "$(basename "$archive")"
+    if par2verify -q -- "$par2"; then
+        echo "Integrity OK."
+    else
+        echo "Integrity check FAILED - the archive is damaged." >&2
+        read -rp "Attempt recovery with par2repair? [y/N] " reply
+        [[ "$reply" == [yY] ]] || die "Aborted."
+        par2repair -q -- "$par2" || die "par2repair could not recover the archive."
+        echo "Recovery succeeded."
+    fi
+else
+    echo "Warning: no $par2 found - skipping integrity check." >&2
+    read -rp "Continue without verification? [y/N] " reply
+    [[ "$reply" == [yY] ]] || exit 0
+fi
+
+# Read the whole key until EOF (Ctrl-D) so multi-line keys survive intact;
+# stty -echo keeps it off the terminal like read -s did.
+printf 'Paste your private key, then press Ctrl-D on a new line: '
+trap 'stty echo' EXIT
+stty -echo
+agekey="$(cat)"
+stty echo
+trap - EXIT
+echo
+[[ -n "$agekey" ]] || die "No key provided."
+
+base="$(basename "$archive")"
+base="${base%.zip.age}"
+dest="$DESKTOP/$base"
+
+if [[ -e "$dest" ]]; then
+    read -rp "$dest already exists - overwrite its contents? [y/N] " reply
+    [[ "$reply" == [yY] ]] || exit 0
+fi
+
+tmpzip="$(mktemp --tmpdir restore-backup.XXXXXX.zip)"
+trap 'rm -f -- "$tmpzip"' EXIT
+
+echo "Decrypting ..."
+# process sub keeps the key off disk
+age -d -i <(printf '%s\n' "$agekey") -o "$tmpzip" -- "$archive" ||
+    die "Decryption failed - wrong key or corrupt archive."
+
+echo "Extracting to $dest ..."
+mkdir -p "$dest"
+unzip -q -o -d "$dest" "$tmpzip"
+
+echo "Done: $dest"

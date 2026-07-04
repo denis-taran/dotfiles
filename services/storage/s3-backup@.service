@@ -1,0 +1,17 @@
+[Unit]
+Description=Amazon S3 storage backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=%i
+LoadCredential=s3-access-key:/etc/credstore/s3-access-key
+LoadCredential=s3-secret-key:/etc/credstore/s3-secret-key
+LoadCredential=s3-region:/etc/credstore/s3-region
+LoadCredential=encryption-pub-key:/etc/credstore/s3-encryption-pub-key
+ExecStart=/usr/local/libexec/dotfiles/s3-backup.sh
+
+# Sandboxing (common directives appended from lib/sandbox.conf at install time)
+InaccessiblePaths=-/home/%i/.ssh -/home/%i/.gnupg -/home/%i/.config/1Password
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

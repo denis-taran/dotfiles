@@ -36,6 +36,7 @@ readonly _HELM_GPG_FP="DDF78C3E6EBB2D2CC223C95C62BA89D07698DBC6"
 readonly _TERRAFORM_GPG_FP="798AEC654E5C15428C8E42EEAA16FCBCA621E701"
 readonly _1PASSWORD_GPG_FP="3FEF9748469ADBE15DA7CA80AC2D62742012EA22"
 readonly _CLAUDE_GPG_FP="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
+readonly _AWS_CLI_GPG_FP="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"
 
 _is_root=false
 [ "$EUID" -eq 0 ] && _is_root=true
@@ -149,6 +150,9 @@ create_link() {
 run_as_user mkdir -p "$HOMEDIR/.config"
 run_as_user touch "$HOMEDIR/.hushlogin"
 
+run_as_user mkdir -p "$HOMEDIR/Code"
+chmod 700 "$HOMEDIR/Code"
+
 if $_is_ubuntu && $_is_root; then
     apt-get update
 
@@ -168,6 +172,7 @@ if $_is_ubuntu && $_is_root; then
 
     packages=(
         "aardvark-dns"
+        "age"
         "bash-completion"
         "bat"
         "bind9-dnsutils"
@@ -184,11 +189,14 @@ if $_is_ubuntu && $_is_root; then
         "iproute2"
         "lsof"
         "iptables"
+        "isync"
         "locales"
         "lsb-release"
         "neovim"
         "netavark"
         "pandoc"
+        "par2"
+        "postgresql-client"
         "passt"
         "pipx"
         "podman-compose"
@@ -212,8 +220,14 @@ if $_is_ubuntu && $_is_root; then
     )
 
     if ! is_wsl; then
-        packages=( "${packages[@]/aardvark-dns}" )
-        packages=( "${packages[@]/netavark}" )
+        filtered=()
+        for pkg in "${packages[@]}"; do
+            case "$pkg" in
+            aardvark-dns | netavark) continue ;;
+            esac
+            filtered+=("$pkg")
+        done
+        packages=("${filtered[@]}")
     fi
 
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${packages[@]}"
@@ -224,7 +238,6 @@ if $_is_ubuntu && $_is_root; then
 
     sudo -u "$USERNAME" -H git lfs install
 
-    snap list aws-cli >/dev/null 2>&1 || snap install aws-cli --classic
     snap list node >/dev/null 2>&1 || snap install node --classic --channel="$NODE_SNAP_CHANNEL"
 
     # pipx becuase the ansible PPA is perpetually broken on new ubuntu releases
@@ -266,26 +279,55 @@ _link_owner=""
 if $_is_root; then _link_owner="$USERNAME"; fi
 
 run_as_user mkdir -p "$HOMEDIR/.ssh"
-$_is_root && chown "$USERNAME:" "$HOMEDIR/.ssh" || true
+if $_is_root; then chown "$USERNAME:" "$HOMEDIR/.ssh"; fi
 chmod 700 "$HOMEDIR/.ssh"
 
+get_windows_home() {
+    local cmd='/mnt/c/Windows/System32/cmd.exe' win_profile
+
+    [[ -x "$cmd" ]] || return 127
+
+    win_profile="$(
+        cd /mnt/c || exit 1
+        "$cmd" /d /q /c 'echo %USERPROFILE%'
+    )" || return 1
+    win_profile="${win_profile%$'\r'}"
+
+    [[ "$win_profile" =~ ^[A-Za-z]:\\ ]] || return 1
+
+    wslpath -u "$win_profile"
+}
+
+USERPROFILE=""
 if is_wsl; then
-    if [[ -z "${USERPROFILE:-}" ]]; then
-        echo "USERPROFILE not set" >&2
-        exit 1
+    USERPROFILE="$(get_windows_home || true)"
+    if [[ -z "$USERPROFILE" ]]; then
+        echo "Could not locate Windows user profile. Skipping Windows links and SSH import." >&2
     fi
-    _win_ssh="$USERPROFILE/.ssh"
-    if [[ ! -d "$_win_ssh" ]]; then
-        echo "Windows ~/.ssh not found at $_win_ssh" >&2
-        exit 1
-    fi
-    for _f in "$_win_ssh"/*; do
-        [[ -f "$_f" ]] || continue
-        _name="$(basename "$_f")"
-        run_as_user cp "$_f" "$HOMEDIR/.ssh/$_name"
-        chmod 600 "$HOMEDIR/.ssh/$_name"
-    done
 fi
+
+if is_wsl && [[ -n "$USERPROFILE" ]]; then
+    _win_ssh="$USERPROFILE/.ssh"
+    if [[ -d "$_win_ssh" ]]; then
+        for _f in "$_win_ssh"/*; do
+            [[ -f "$_f" ]] || continue
+            _name="$(basename "$_f")"
+            run_as_user cp "$_f" "$HOMEDIR/.ssh/$_name"
+            chmod 600 "$HOMEDIR/.ssh/$_name"
+        done
+    else
+        echo "Windows ~/.ssh not found at $_win_ssh. Skipping SSH import." >&2
+    fi
+fi
+
+# Ensure a `gh` host alias for github.com
+_ssh_config="$HOMEDIR/.ssh/config"
+if ! run_as_user grep -qE '^Host[[:space:]]+gh([[:space:]]|$)' "$_ssh_config" 2>/dev/null; then
+    printf '\nHost gh\n    HostName github.com\n    User git\n' |
+        run_as_user tee -a "$_ssh_config" >/dev/null
+    chmod 600 "$_ssh_config"
+fi
+
 for src in "${!links[@]}"; do
     dest="${links[$src]}"
     run_as_user mkdir -p "$(dirname "$dest")"
@@ -319,6 +361,7 @@ install_env_vars() {
     [[ -f "$env_json" ]] || return 0
 
     run_as_user touch "$env_file"
+    chmod 600 "$env_file"
 
     local name value
     while IFS=$'\t' read -r name value; do
@@ -373,6 +416,13 @@ if [[ "$_git_cfg_list" != *"user.signingkey="* ]]; then
 fi
 
 if command -v code &>/dev/null; then
+    _ext_file="$SCRIPT_DIR/.config/Code/User/extensions.txt"
+    if [[ -f "$_ext_file" ]]; then
+        while IFS= read -r ext; do
+            [[ -z "$ext" || "$ext" == \#* ]] && continue
+            run_as_user code --install-extension "$ext" --force 2>/dev/null || true
+        done <"$_ext_file"
+    fi
     run_as_user git config -f "$_git_cfg" core.editor "code --wait"
 elif command -v nvim &>/dev/null; then
     run_as_user git config -f "$_git_cfg" core.editor "nvim"
@@ -448,12 +498,78 @@ download_and_install_binary() {
     install -m 0755 "$dlfile" "$dest"
 }
 
+verify_pgp_signature() {
+    local keyfile="$1" sigfile="$2" target="$3" expected_fp="${4:-}"
+    if [[ ! -f "$keyfile" ]]; then
+        echo "public key not found: $keyfile" >&2
+        return 1
+    fi
+
+    local gnupghome rc=0
+    gnupghome=$(mktemp -d)
+    chmod 700 "$gnupghome"
+
+    GNUPGHOME="$gnupghome" gpg --batch --quiet --import "$keyfile" || rc=1
+
+    if [[ $rc -eq 0 && -n "$expected_fp" ]]; then
+        if ! GNUPGHOME="$gnupghome" gpg --batch --with-colons --fingerprint 2>/dev/null |
+            awk -F: '$1=="fpr"{print $10}' |
+            grep -qi "^${expected_fp}$"; then
+            echo "fingerprint mismatch: expected $expected_fp" >&2
+            rc=1
+        fi
+    fi
+
+    if [[ $rc -eq 0 ]]; then
+        GNUPGHOME="$gnupghome" gpg --batch --verify "$sigfile" "$target" || rc=1
+    fi
+
+    rm -rf "$gnupghome"
+    return $rc
+}
+
+install_aws_cli() {
+    local arch="$1"
+    local arch_label
+    case "$arch" in
+    amd64) arch_label="x86_64" ;;
+    arm64) arch_label="aarch64" ;;
+    *)
+        echo "unsupported arch for aws cli: $arch" >&2
+        return 1
+        ;;
+    esac
+
+    local keyfile="$SCRIPT_DIR/scripts/keys/aws-cli.asc"
+
+    local workdir
+    workdir=$(mktemp -d)
+    trap 'rm -rf "$workdir"; trap - RETURN' RETURN
+
+    local url="https://awscli.amazonaws.com/awscli-exe-linux-${arch_label}.zip"
+    curl -fsSL -o "$workdir/awscliv2.zip" "$url"
+    curl -fsSL -o "$workdir/awscliv2.sig" "$url.sig"
+
+    if ! verify_pgp_signature "$keyfile" "$workdir/awscliv2.sig" \
+        "$workdir/awscliv2.zip" "$_AWS_CLI_GPG_FP"; then
+        echo "aws cli signature verification failed" >&2
+        return 1
+    fi
+
+    unzip -q -o -d "$workdir" "$workdir/awscliv2.zip"
+
+    "$workdir/aws/install" --bin-dir /usr/local/bin \
+        --install-dir /usr/local/aws-cli --update
+}
+
 if $_is_ubuntu && $_is_root; then
     _arch=$(dpkg --print-architecture)
-    [[  "$_arch" == "amd64" || "$_arch" == "arm64" ]] || {
+    [[ "$_arch" == "amd64" || "$_arch" == "arm64" ]] || {
         echo "unsupported arch: $_arch" >&2
         exit 1
     }
+
+    install_aws_cli "$_arch"
 
     # azcli snap is community-published
     _codename=$(apt_key "https://packages.microsoft.com/keys/microsoft.asc" "/etc/apt/keyrings/microsoft.gpg" \
@@ -550,8 +666,8 @@ UNIT
         else
             sudo -u "$USERNAME" -H \
                 env XDG_RUNTIME_DIR="/run/user/$uid" \
-                    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-                    KIND_EXPERIMENTAL_PROVIDER=podman \
+                DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+                KIND_EXPERIMENTAL_PROVIDER=podman \
                 systemd-run --scope --user -p Delegate=yes kind "$@"
         fi
     }
@@ -581,7 +697,7 @@ UNIT
 
     if [[ -f "$user_cfg" ]]; then
         tmp_merged=$(mktemp)
-        sudo -u "$USERNAME" -H env "KUBECONFIG=${tmp_kind_cfg}:${user_cfg}" kubectl config view --flatten >"$tmp_merged"
+        sudo -u "$USERNAME" -H env "KUBECONFIG=${tmp_kind_cfg}:${user_cfg}" kubectl config view --flatten | tee "$tmp_merged" >/dev/null
         install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_merged" "$user_cfg"
     else
         install -m 0600 -o "$USERNAME" -g "$(id -gn "$USERNAME")" "$tmp_kind_cfg" "$user_cfg"

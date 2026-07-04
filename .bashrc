@@ -65,8 +65,8 @@ venv() {
     if [[ -d ".venv" ]]; then
         source .venv/bin/activate
     else
-        python -m venv .venv && source .venv/bin/activate \
-            && pip install --upgrade pip
+        python -m venv .venv && source .venv/bin/activate &&
+            pip install --upgrade pip
     fi
 }
 
@@ -78,7 +78,7 @@ if command -v eza >/dev/null 2>&1; then
 fi
 
 mkcd() {
-    mkdir -p "$1" && cd "$1"
+    mkdir -p "$1" && cd "$1" || return
 }
 
 gr() { cd "$(git rev-parse --show-toplevel)" || return; }
@@ -93,19 +93,28 @@ p() {
     local pdir="$code_dir/${1:?project name required}"
     local wt_list wt_count target
 
-    [[ -d "$pdir" ]] \
-        || { printf "Not found: $1\n" >&2; return 1; }
+    [[ -d "$pdir" ]] ||
+        {
+            printf 'Not found: %s\n' "$1" >&2
+            return 1
+        }
 
-    wt_list="$(git -C "$pdir" worktree list 2>/dev/null)" \
-        || {  cd "$pdir" || return; return; }
+    wt_list="$(git -C "$pdir" worktree list 2>/dev/null)" ||
+        {
+            cd "$pdir" || return
+            return
+        }
 
-    wt_count="$(wc -l <<< "$wt_list")"
-    (( wt_count > 1 )) \
-        ||  { cd "$pdir" || return; return; }
+    wt_count="$(wc -l <<<"$wt_list")"
+    ((wt_count > 1)) ||
+        {
+            cd "$pdir" || return
+            return
+        }
 
     if [[ -n "${2-}" ]]; then
         target="$(awk -v wt="$2" \
-            'index($0, wt) {print $1; exit}' <<< "$wt_list")"
+            'index($0, wt) {print $1; exit}' <<<"$wt_list")"
     else
         target="$(awk '
             { fallback=$1 }
@@ -113,11 +122,14 @@ p() {
             /\[master\]/ && !preferred { preferred=$1 }
             !/\(bare\)/ && !first { first=$1 }
             END { print preferred ? preferred : first ? first : fallback }
-        ' <<< "$wt_list")"
+        ' <<<"$wt_list")"
     fi
 
-     [[ -n "$target" ]] \
-        || { echo "Worktree not found: ${2:-default}" >&2; return 1; }
+    [[ -n "$target" ]] ||
+        {
+            echo "Worktree not found: ${2:-default}" >&2
+            return 1
+        }
     cd "$target" || return
 }
 
@@ -130,10 +142,10 @@ _p_completions() {
         mapfile -t COMPREPLY < <(compgen -W "$words" -- "$cur")
     elif [[ $COMP_CWORD -eq 2 ]]; then
         local pdir="$code_dir/${COMP_WORDS[1]}"
-        if [[  -d "$pdir" ]]; then
+        if [[ -d "$pdir" ]]; then
             branches="$(
-                git -C "$pdir" worktree list 2>/dev/null \
-                    | awk '{gsub(/[\[\]]/, "", $3); if ($3) print $3}'
+                git -C "$pdir" worktree list 2>/dev/null |
+                    awk '{gsub(/[\[\]]/, "", $3); if ($3) print $3}'
             )"
             mapfile -t COMPREPLY \
                 < <(compgen -W "$branches" -- "$cur")
@@ -232,10 +244,13 @@ function git_prompt {
     local d="$PWD" gd="" git_file=false
 
     while [[ -n "$d" ]]; do
-        if [[ -d "$d/.git" ]]; then gd="$d/.git"; break; fi
+        if [[ -d "$d/.git" ]]; then
+            gd="$d/.git"
+            break
+        fi
         if [[ -f "$d/.git" ]]; then
             git_file=true
-            read -r gd < "$d/.git"
+            read -r gd <"$d/.git"
             if [[ "$gd" == "gitdir: "* ]]; then
                 gd="${gd#gitdir: }"
                 [[ "$gd" != /* ]] && gd="$d/$gd"
@@ -252,7 +267,7 @@ function git_prompt {
     fi
 
     local head line oid=""
-    read -r head < "$gd/HEAD"
+    read -r head <"$gd/HEAD"
 
     if [[ "$head" != ref:* ]]; then
         _git_prompt_out="[DETACHED@${head:0:7}] "
@@ -261,17 +276,17 @@ function git_prompt {
 
     local common_gd="$gd"
     if [[ -f "$gd/commondir" ]]; then
-        read -r common_gd < "$gd/commondir"
+        read -r common_gd <"$gd/commondir"
         [[ "$common_gd" != /* ]] && common_gd="$gd/$common_gd"
     fi
 
     local branch="${head#ref: refs/heads/}"
     if [[ -f "$common_gd/refs/heads/$branch" ]]; then
-        read -r oid < "$common_gd/refs/heads/$branch"
+        read -r oid <"$common_gd/refs/heads/$branch"
     elif [[ -f "$common_gd/packed-refs" ]]; then
         while read -r line; do
             [[ "$line" == *" refs/heads/$branch" ]] && oid="$line" && break
-        done < "$common_gd/packed-refs"
+        done <"$common_gd/packed-refs"
     fi
 
     local state=""
@@ -283,7 +298,7 @@ function git_prompt {
         state="|CHERRY"
     fi
 
-    if (( ${#branch} > 30 )); then
+    if ((${#branch} > 30)); then
         branch="${branch:0:14}…${branch: -15}"
     fi
     if [[ -n "$oid" ]]; then
@@ -331,7 +346,7 @@ function set_prompt {
 }
 
 PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;}; }"
-PROMPT_COMMAND+='__prompt_exit=$?; history -a; set_prompt'
+PROMPT_COMMAND+='__prompt_exit=$?; set_prompt'
 
 ###############################################################################
 # .NET

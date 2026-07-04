@@ -1,3 +1,10 @@
+
+$_nonInteractive = [Environment]::GetCommandLineArgs() |
+    Where-Object { $_ -match '^-(NonInteractive|noni|Command|c|File|f|EncodedCommand|e|ec)$' }
+if ($_nonInteractive -or -not [Environment]::UserInteractive) {
+    return
+}
+
 Set-StrictMode -Version 3.0
 
 ###############################################################################
@@ -16,10 +23,10 @@ $env:GIT_OPTIONAL_LOCKS = "0"
 
 
 if (Get-Command eza -ErrorAction SilentlyContinue) {
-    function ll { eza -lh --color=always @args }
-    function ls { eza --color=always @args }
-    function lg { eza --git -l --color=always @args }
-    function tree { eza --tree --color=always @args }
+    function ll { eza -lh --color=auto @args }
+    function ls { eza --color=auto @args }
+    function lg { eza --git -l --color=auto @args }
+    function tree { eza --tree --color=auto @args }
 }
 
 if (-not (Get-Command touch -ErrorAction SilentlyContinue)) {

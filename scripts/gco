@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016
 set -euo pipefail
 
 die() {
@@ -38,6 +39,9 @@ esac
 
 branch="$(printf '%s' "$selected" | cut -f1 | sed 's/^\*//' | tr -d ' ')"
 
-[[ "$branch" == "$current" ]] && { printf 'Already on %s\n' "$branch"; exit 0; }
+[[ "$branch" == "$current" ]] && {
+    printf 'Already on %s\n' "$branch"
+    exit 0
+}
 
 git checkout "$branch"

@@ -1,3 +1,5 @@
+# shellcheck shell=sh
+
 if [ -f "/etc/dotnet/install_location" ]; then
     DOTNET_ROOT="$(cat /etc/dotnet/install_location)"
     export DOTNET_ROOT

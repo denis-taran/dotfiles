@@ -3,9 +3,15 @@ $ErrorActionPreference = "Stop"
 
 $scriptPath = $MyInvocation.MyCommand.Definition
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-$CanSymlink = $IsAdmin -or (
-    (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" -ErrorAction SilentlyContinue).AllowDevelopmentWithoutDevLicense -eq 1
-)
+$CanSymlink = $IsAdmin -or (& {
+    try {
+        $key = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"
+        (Get-ItemProperty -Path $key -Name AllowDevelopmentWithoutDevLicense `
+            -ErrorAction Stop).AllowDevelopmentWithoutDevLicense -eq 1
+    } catch {
+        $false
+    }
+})
 $CanEditRegistry = & {
     $testPath = 'HKCU:\Software\_RegistryWriteTest'
     try {
@@ -60,6 +66,12 @@ function Set-Link($TargetPath, $LinkPath) {
     }
 }
 
+function Copy-File ($TargetPath, $DestPath) {
+    $parent = Split-Path $DestPath
+    if ($parent) { $null = New-Item -Path $parent -ItemType Directory -Force }
+    Copy-Item -LiteralPath $TargetPath -Destination $DestPath -Force
+}
+
 function Install-DotFiles() {
     $vsSettings = Resolve-Path `
         "$env:LOCALAPPDATA\Microsoft\VisualStudio\[0-9]*\settings.json" `
@@ -72,12 +84,28 @@ function Install-DotFiles() {
         Set-Link -LinkPath $vsSettings -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\vs\settings.json')
     }
 
-    Set-Link -LinkPath "$Env:APPDATA\Code\User\settings.json" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\Code\User\settings.json')
+    # Copied instead of linking, because VSCode self-edits would dirty the repo
+    Copy-File -DestPath "$Env:APPDATA\Code\User\settings.json" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\Code\User\settings.json')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/attributes" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\attributes')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/ignore" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\ignore')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/config" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\config')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/delta" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\delta')
     Set-Link -LinkPath "$Env:UserProfile/.editorconfig" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.editorconfig')
+}
+
+function Install-VsCodeExtensions() {
+    if (-not (Get-Command code -ErrorAction SilentlyContinue)) { return }
+    $extFile = Join-Path $RepoRoot '.config\Code\User\extensions.txt'
+    if (-not (Test-Path $extFile)) { return }
+
+    $requested = Get-Content $extFile |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -and -not $_.StartsWith('#') }
+
+    foreach ($ext in $requested) {
+        Write-Host "install extension '$ext'"
+        & cmd /c "code --install-extension $ext --force >nul 2>nul"
+    }
 }
 
 function Set-GitLocalConfig() {
@@ -649,21 +677,15 @@ function Set-XdgPaths() {
         "XDG_STATE_HOME",
         (Join-Path $env:USERPROFILE ".local\state"),
         "User")
-
-    $wslenv = [Environment]::GetEnvironmentVariable("WSLENV", "User")
-    $entries = if ($wslenv) { $wslenv -split ':' } else { @() }
-    if ($entries -notcontains "USERPROFILE/p") {
-        $entries += "USERPROFILE/p"
-        [Environment]::SetEnvironmentVariable(
-            "WSLENV",
-            ($entries -join ':'),
-            "User")
-    }
 }
 
 function Uninstall-OneDrive() {
     Write-Host "Uninstalling OneDrive..."
     winget uninstall -e --id Microsoft.OneDrive --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "OneDrive uninstall failed. Skipping folder removal."
+        return
+    }
     Remove-Item -Path "$env:USERPROFILE\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
@@ -677,13 +699,36 @@ function Backup-File($Path) {
 }
 
 function Backup-Registry() {
+    if (-not $CanEditRegistry) {
+        Write-Warning "Registry editing is not allowed by policy and will be skipped."
+        return
+    }
     $ts = Get-Date -Format "yyyy-MM-dd HH-mm-ss"
     $backupDir = Join-Path $HOME "Backups\Windows\$ts - Registry"
     New-Item $backupDir -ItemType Directory -Force | Out-Null
     Write-Host "Backing up registry to $backupDir ..."
-    reg export HKCU "$backupDir\HKCU.reg" /y
+    & cmd /c "reg export HKCU `"$backupDir\HKCU.reg`" /y >nul 2>nul"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Failed to back up HKCU."
+    }
     if ($IsAdmin) {
-        reg export HKLM "$backupDir\HKLM.reg" /y
+        & cmd /c "reg export HKLM `"$backupDir\HKLM.reg`" /y >nul 2>nul"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Failed to back up HKLM."
+        }
+    }
+}
+
+function Set-CodeFolderPermissions() {
+    $codeDir = Join-Path $env:USERPROFILE 'Code'
+    New-Item -ItemType Directory -Path $codeDir -Force | Out-Null
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    & icacls $codeDir /inheritance:r `
+        /grant:r "${me}:(OI)(CI)F" `
+        "*S-1-5-18:(OI)(CI)F" `
+        "*S-1-5-32-544:(OI)(CI)F" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Failed to restrict permissions on $codeDir"
     }
 }
 
@@ -702,7 +747,11 @@ $IsWorkMachine = $workAnswer -eq 'y'
 
 Backup-Registry
 Install-DotFiles
+Set-CodeFolderPermissions
 if ($IsAdmin -and -not $IsWorkMachine) { Install-Apps }
+if (-not $IsWorkMachine -or (Read-Host "Install VS Code extensions? (y/n)") -eq 'y') {
+    Install-VsCodeExtensions
+}
 Set-GitLocalConfig
 Set-Keyboard
 Set-NoSoundScheme
