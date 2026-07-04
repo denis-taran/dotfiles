@@ -113,8 +113,10 @@ p() {
         }
 
     if [[ -n "${2-}" ]]; then
-        target="$(awk -v wt="$2" \
-            'index($0, wt) {print $1; exit}' <<<"$wt_list")"
+        target="$(awk -v wt="$2" '
+            { br = $NF; gsub(/^\[|\]$/, "", br) }
+            br == wt { print $1; exit }
+        ' <<<"$wt_list")"
     else
         target="$(awk '
             { fallback=$1 }

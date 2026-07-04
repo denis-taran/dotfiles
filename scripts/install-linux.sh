@@ -153,6 +153,11 @@ run_as_user touch "$HOMEDIR/.hushlogin"
 run_as_user mkdir -p "$HOMEDIR/Code"
 chmod 700 "$HOMEDIR/Code"
 
+if ! is_wsl; then
+    run_as_user mkdir -p "$HOMEDIR/Backups"
+    chmod 700 "$HOMEDIR/Backups"
+fi
+
 if $_is_ubuntu && $_is_root; then
     apt-get update
 

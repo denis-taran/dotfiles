@@ -15,10 +15,10 @@ DESKTOP="$HOME/Desktop"
 [[ -d "$BACKUP_ROOT" ]] || die "Backup directory not found: $BACKUP_ROOT"
 
 archive="$(
-    fd --type file '\.zip\.age$' "$BACKUP_ROOT" |
+    fd --type file '\.(zip|dump)\.age$' "$BACKUP_ROOT" |
         fzf --ansi --height=80% --layout=reverse \
             --prompt='Archive> ' \
-            --header='Select a .zip.age backup to restore. Esc to cancel.' \
+            --header='Select a .zip.age or .dump.age backup to restore. Esc to cancel.' \
             --preview 'ls -lh {} 2>/dev/null' \
             --preview-window=up,3,border-bottom \
             --exit-0
@@ -57,24 +57,32 @@ echo
 [[ -n "$agekey" ]] || die "No key provided."
 
 base="$(basename "$archive")"
-base="${base%.zip.age}"
-dest="$DESKTOP/$base"
+case "$archive" in
+*.zip.age) kind="zip" && base="${base%.zip.age}" && dest="$DESKTOP/$base" ;;
+*.dump.age) kind="dump" && base="${base%.dump.age}" && dest="$DESKTOP/$base.dump" ;;
+*) die "Unsupported archive type: $archive" ;;
+esac
 
 if [[ -e "$dest" ]]; then
-    read -rp "$dest already exists - overwrite its contents? [y/N] " reply
+    read -rp "$dest already exists - overwrite? [y/N] " reply
     [[ "$reply" == [yY] ]] || exit 0
 fi
 
-tmpzip="$(mktemp --tmpdir restore-backup.XXXXXX.zip)"
-trap 'rm -f -- "$tmpzip"' EXIT
+tmpout="$(mktemp --tmpdir "restore-backup.XXXXXX.$kind")"
+trap 'rm -f -- "$tmpout"' EXIT
 
 echo "Decrypting ..."
 # process sub keeps the key off disk
-age -d -i <(printf '%s\n' "$agekey") -o "$tmpzip" -- "$archive" ||
+age -d -i <(printf '%s\n' "$agekey") -o "$tmpout" -- "$archive" ||
     die "Decryption failed - wrong key or corrupt archive."
 
-echo "Extracting to $dest ..."
-mkdir -p "$dest"
-unzip -q -o -d "$dest" "$tmpzip"
+if [[ "$kind" == "zip" ]]; then
+    echo "Extracting to $dest ..."
+    mkdir -p "$dest"
+    unzip -q -o -d "$dest" "$tmpout"
+else
+    echo "Writing dump to $dest ..."
+    mv -- "$tmpout" "$dest"
+fi
 
 echo "Done: $dest"

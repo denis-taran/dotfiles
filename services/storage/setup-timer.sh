@@ -14,5 +14,5 @@ store_credential s3-region "Region (e.g. us-east-1)"
 echo "Enter backup encryption key:"
 store_encryption_pub_key s3-encryption-pub-key
 
-install_payload "$SCRIPT_DIR/s3-backup.sh"
+install_payload "$SCRIPT_DIR/s3-backup.sh" "$SCRIPT_DIR/s3-cleanup.sh"
 install_units "$SCRIPT_DIR" s3-backup
