@@ -66,6 +66,115 @@ if (Get-Command code -ErrorAction SilentlyContinue) {
 }
 
 ###############################################################################
+# Project navigation
+###############################################################################
+
+function Resolve-Project {
+    param([string]$Name, [string]$Worktree)
+
+    $codeDir = Join-Path $HOME "Code"
+    if (-not $Name) { Write-Error "project name required"; return $null }
+
+    $pdir = Join-Path $codeDir $Name
+    if (-not (Test-Path -LiteralPath $pdir -PathType Container)) {
+        Write-Error "Not found: $Name"; return $null
+    }
+
+    $porcelain = git -C $pdir worktree list --porcelain 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $porcelain) { return $pdir }
+
+    $trees = @()
+    $cur = $null
+    foreach ($line in $porcelain) {
+        if ($line -like 'worktree *') {
+            if ($cur) { $trees += $cur }
+            $cur = [ordered]@{
+                Path = $line.Substring(9); Branch = ''; Bare = $false
+            }
+        } elseif ($line -eq 'bare') {
+            if ($cur) { $cur.Bare = $true }
+        } elseif ($line -like 'branch refs/heads/*') {
+            if ($cur) {
+                $cur.Branch = $line.Substring('branch refs/heads/'.Length)
+            }
+        }
+    }
+    if ($cur) { $trees += $cur }
+
+    if ($trees.Count -le 1) { return $pdir }
+
+    if ($Worktree) {
+        $match = $trees |
+            Where-Object { $_.Branch -eq $Worktree } |
+            Select-Object -First 1
+        if (-not $match) {
+            Write-Error "Worktree not found: $Worktree"; return $null
+        }
+        return $match.Path
+    }
+
+    $preferred = $trees |
+        Where-Object { $_.Branch -eq 'main' } | Select-Object -First 1
+    if (-not $preferred) {
+        $preferred = $trees |
+            Where-Object { $_.Branch -eq 'master' } |
+            Select-Object -First 1
+    }
+    if (-not $preferred) {
+        $preferred = $trees |
+            Where-Object { -not $_.Bare } | Select-Object -First 1
+    }
+    if (-not $preferred) { $preferred = $trees[0] }
+    return $preferred.Path
+}
+
+function p {
+    param([string]$Project, [string]$Worktree)
+    $target = Resolve-Project -Name $Project -Worktree $Worktree
+    if ($target) { Set-Location -LiteralPath $target }
+}
+
+function pc {
+    param([string]$Project, [string]$Worktree)
+    $target = Resolve-Project -Name $Project -Worktree $Worktree
+    if ($target) { code $target }
+}
+
+Register-ArgumentCompleter -CommandName p, pc -ScriptBlock {
+    param($wordToComplete, $commandAst, $cursorPosition)
+
+    $codeDir = Join-Path $HOME "Code"
+    $tokens = $commandAst.CommandElements
+    $pos = if ($wordToComplete) { $tokens.Count - 1 } else { $tokens.Count }
+
+    if ($pos -le 1) {
+        if (-not (Test-Path -LiteralPath $codeDir)) { return }
+        Get-ChildItem -LiteralPath $codeDir -Directory `
+                -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "$wordToComplete*" } |
+            ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new(
+                    $_.Name, $_.Name, 'ParameterValue', $_.Name)
+            }
+    }
+    elseif ($pos -eq 2) {
+        $proj = $tokens[1].Value
+        $pdir = Join-Path $codeDir $proj
+        if (-not (Test-Path -LiteralPath $pdir)) { return }
+        $porcelain = git -C $pdir worktree list --porcelain 2>$null
+        foreach ($line in $porcelain) {
+            if ($line -like 'branch refs/heads/*') {
+                $br = $line.Substring('branch refs/heads/'.Length)
+                if ($br -like "$wordToComplete*") {
+                    [System.Management.Automation.CompletionResult]::new(
+                        $br, $br, 'ParameterValue', $br)
+                }
+            }
+        }
+    }
+}
+
+###############################################################################
 # Kubernetes & Docker/Podman
 ###############################################################################
 
