@@ -37,6 +37,7 @@ readonly _TERRAFORM_GPG_FP="798AEC654E5C15428C8E42EEAA16FCBCA621E701"
 readonly _1PASSWORD_GPG_FP="3FEF9748469ADBE15DA7CA80AC2D62742012EA22"
 readonly _CLAUDE_GPG_FP="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
 readonly _AWS_CLI_GPG_FP="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"
+readonly _GOOGLE_GPG_FP="EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"
 
 _is_root=false
 [ "$EUID" -eq 0 ] && _is_root=true
@@ -420,16 +421,19 @@ if [[ "$_git_cfg_list" != *"user.signingkey="* ]]; then
     fi
 fi
 
-if command -v code &>/dev/null; then
-    _ext_file="$SCRIPT_DIR/.config/Code/User/extensions.txt"
-    if [[ -f "$_ext_file" ]]; then
-        while IFS= read -r ext; do
-            [[ -z "$ext" || "$ext" == \#* ]] && continue
-            run_as_user code --install-extension "$ext" --force 2>/dev/null || true
-        done <"$_ext_file"
-    fi
+install_vscode_extensions() {
+    command -v code &>/dev/null || return 0
+    local _ext_file="$SCRIPT_DIR/.config/Code/User/extensions.txt"
+    [[ -f "$_ext_file" ]] || return 0
+    local ext
+    while IFS= read -r ext; do
+        [[ -z "$ext" || "$ext" == \#* ]] && continue
+        run_as_user code --install-extension "$ext" --force 2>/dev/null || true
+    done <"$_ext_file"
     run_as_user git config -f "$_git_cfg" core.editor "code --wait"
-elif command -v nvim &>/dev/null; then
+}
+
+if command -v nvim &>/dev/null; then
     run_as_user git config -f "$_git_cfg" core.editor "nvim"
 elif command -v vim &>/dev/null; then
     run_as_user git config -f "$_git_cfg" core.editor "vim"
@@ -709,4 +713,104 @@ UNIT
     fi
 
     sudo -u "$USERNAME" -H kubectl config use-context kind-kind
+fi
+
+###############################################################################
+## Desktop Environment
+###############################################################################
+
+is_wsl && exit 1
+systemctl get-default 2>/dev/null | grep -q 'graphical' || exit 1
+
+echo "Desktop environment detected. GUI apps will be installed."
+
+# needed for full disk encryption with TPM
+DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+    apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
+    tpm2-tss tpm2-tools
+
+if [[ "$_arch" == "amd64" ]]; then
+    apt_key \
+        "https://dl.google.com/linux/linux_signing_key.pub" \
+        "/etc/apt/keyrings/google-chrome.gpg" \
+        "" "$_GOOGLE_GPG_FP" >/dev/null
+    printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main\n' \
+        >/etc/apt/sources.list.d/google-chrome.list
+fi
+
+# reuses the microsoft.gpg keyring imported earlier for the azure-cli repo
+printf 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main\n' \
+    >/etc/apt/sources.list.d/vscode.list
+
+apt-get update
+
+DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+    apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
+    code fprintd libpam-fprintd
+
+if [[ "$_arch" == "amd64" ]]; then
+    # gnupg2 is required by 1password, otherwise its install fails
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+        apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
+        gnupg2 google-chrome-stable 1password
+fi
+
+snap remove --purge firefox >/dev/null 2>&1 || true
+
+apt-get clean
+
+install_vscode_extensions
+
+# fingerprint auth for polkit prompts
+_polkit_pam="/etc/pam.d/polkit-1"
+_polkit_src="/usr/lib/pam.d/polkit-1"
+if dpkg -l libpam-fprintd 2>/dev/null | grep -q '^ii'; then
+    if [[ ! -f "$_polkit_pam" && -f "$_polkit_src" ]]; then
+        cp "$_polkit_src" "$_polkit_pam"
+    fi
+    if [[ -f "$_polkit_pam" ]] && ! grep -q "pam_fprintd.so" "$_polkit_pam"; then
+        sed -i \
+            '/@include common-auth/i auth      sufficient  pam_fprintd.so' \
+            "$_polkit_pam"
+    fi
+fi
+
+# currently obsidian is broken on ubuntu, because they switched to rust
+# coreutils. so for now install it manually:
+#   snap install obsidian --classic
+
+run_as_user dbus-run-session -- bash <<'EOF' || true
+set +e
+
+# keyboard shortcuts
+gsettings set org.gnome.shell.keybindings show-screenshot-ui "['<Super><Shift>s']"
+gsettings set org.gnome.settings-daemon.plugins.media-keys home "['<Super>e']"
+gsettings set org.gnome.settings-daemon.plugins.media-keys control-center "['<Super>i']"
+
+# strip Ubuntu's GNOME customizations
+gsettings set org.gnome.desktop.interface gtk-theme Adwaita
+gsettings set org.gnome.desktop.interface icon-theme Adwaita
+gsettings set org.gnome.desktop.interface cursor-theme Adwaita
+gnome-extensions disable ubuntu-dock@ubuntu.com 2>/dev/null || true
+gnome-extensions disable ding@rastersoft.com 2>/dev/null || true
+
+# fonts
+gsettings set org.gnome.desktop.interface font-name 'Frutiger Next Regular 11'
+gsettings set org.gnome.desktop.wm.preferences titlebar-font 'Frutiger Next Bold 11'
+gsettings set org.gnome.desktop.interface document-font-name 'Source Sans 3 Regular 11'
+gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono Regular 11'
+
+# key repeat
+gsettings set org.gnome.desktop.peripherals.keyboard delay 350
+gsettings set org.gnome.desktop.peripherals.keyboard repeat true
+gsettings set org.gnome.desktop.peripherals.keyboard repeat-interval 24
+EOF
+
+# install fonts
+_fonts_dst="$HOMEDIR/.local/share/fonts"
+_fonts_src="$HOMEDIR/Proton/Library/Fonts"
+if [[ -d "$_fonts_src" ]]; then
+    run_as_user mkdir -p "$_fonts_dst"
+    run_as_user cp -r "$_fonts_src/." "$_fonts_dst/" 2>/dev/null || true
+    run_as_user fc-cache -f >/dev/null 2>&1 || true
 fi
