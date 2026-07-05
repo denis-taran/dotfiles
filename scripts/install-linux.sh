@@ -266,6 +266,14 @@ if $_is_ubuntu && $_is_root; then
             "$HOMEDIR/.config/systemd/user/sockets.target.wants/podman.socket" \
             "$USERNAME"
     fi
+
+    # restart containers with restart-policy=always on boot (e.g. the kind cluster)
+    if [[ -f /usr/lib/systemd/user/podman-restart.service ]]; then
+        run_as_user mkdir -p "$HOMEDIR/.config/systemd/user/default.target.wants"
+        create_link /usr/lib/systemd/user/podman-restart.service \
+            "$HOMEDIR/.config/systemd/user/default.target.wants/podman-restart.service" \
+            "$USERNAME"
+    fi
 fi
 
 declare -A links=(
@@ -681,6 +689,24 @@ UNIT
         fi
     }
 
+    # runs podman as regular user with rootless env
+    _podman_as_user() {
+        if is_wsl; then
+            sudo -u "$USERNAME" -H podman "$@"
+        else
+            sudo -u "$USERNAME" -H env XDG_RUNTIME_DIR="/run/user/$(id -u "$USERNAME")" podman "$@"
+        fi
+    }
+
+    _kind_control_plane_running() {
+        [[ "$(_podman_as_user inspect -f '{{.State.Running}}' kind-control-plane 2>/dev/null)" == "true" ]]
+    }
+
+    if _kind_as_user get clusters 2>/dev/null | grep -q "^kind$" && ! _kind_control_plane_running; then
+        echo "kind cluster exists but its container isn't running. Recreating."
+        _kind_as_user delete cluster 2>/dev/null || true
+    fi
+
     if _kind_as_user get clusters 2>/dev/null | grep -q "^kind$"; then
         echo "kind cluster already exists. Skipping creation."
     else
@@ -692,6 +718,8 @@ UNIT
         fi
         _kind_as_user create cluster
     fi
+
+    _podman_as_user update --restart=always kind-control-plane
 
     kube_dir="$HOMEDIR/.kube"
     sudo -u "$USERNAME" -H mkdir -p "$kube_dir"
