@@ -1,25 +1,24 @@
 #!/bin/bash
 
-local repo_url="$1"
-local dir="$2"
+repo_url="$1"
+dir="$2"
 
 if [ -z "$repo_url" ]; then
     echo "Usage: gcw <repo-url> [dir]"
-    return 1
+    exit 1
 fi
 
 if [ -z "$dir" ]; then
     dir=$(basename "$repo_url" .git)
 fi
 
-mkdir -p "$dir" && cd "$dir" || return 1
+mkdir -p "$dir" && cd "$dir" || exit 1
 
 git clone --bare "$repo_url" .bare
 echo "gitdir: ./.bare" > .git
 git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 git fetch origin
 
-local default_branch
 default_branch=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
 git worktree add "$default_branch" "$default_branch"
 
