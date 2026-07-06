@@ -785,6 +785,11 @@ if [[ "$_arch" == "amd64" ]]; then
 fi
 
 snap remove --purge firefox >/dev/null 2>&1 || true
+snap remove --purge thunderbird >/dev/null 2>&1 || true
+
+DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+    apt-get -o DPkg::Lock::Timeout=300 purge -y \
+    thunderbird rhythmbox yelp
 
 apt-get clean
 
