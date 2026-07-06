@@ -789,18 +789,21 @@ apt-get clean
 
 install_vscode_extensions
 
-# fingerprint auth for polkit prompts
-_polkit_pam="/etc/pam.d/polkit-1"
-_polkit_src="/usr/lib/pam.d/polkit-1"
+# fingerprint auth for polkit and sudo prompts
 if dpkg -l libpam-fprintd 2>/dev/null | grep -q '^ii'; then
+    _polkit_pam="/etc/pam.d/polkit-1"
+    _polkit_src="/usr/lib/pam.d/polkit-1"
     if [[ ! -f "$_polkit_pam" && -f "$_polkit_src" ]]; then
         cp "$_polkit_src" "$_polkit_pam"
     fi
-    if [[ -f "$_polkit_pam" ]] && ! grep -q "pam_fprintd.so" "$_polkit_pam"; then
-        sed -i \
-            '/@include common-auth/i auth      sufficient  pam_fprintd.so' \
-            "$_polkit_pam"
-    fi
+
+    for _pam_file in "$_polkit_pam" /etc/pam.d/sudo; do
+        if [[ -f "$_pam_file" ]] && ! grep -q "pam_fprintd.so" "$_pam_file"; then
+            sed -i \
+                '/@include common-auth/i auth      sufficient  pam_fprintd.so' \
+                "$_pam_file"
+        fi
+    done
 fi
 
 # currently obsidian is broken on ubuntu, because they switched to rust
