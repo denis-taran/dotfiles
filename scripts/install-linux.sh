@@ -287,6 +287,7 @@ declare -A links=(
     ["$SCRIPT_DIR/.inputrc"]="$HOMEDIR/.inputrc"
     ["$SCRIPT_DIR/.config/nvim/init.lua"]="$HOMEDIR/.config/nvim/init.lua"
     ["$SCRIPT_DIR/.editorconfig"]="$HOMEDIR/.editorconfig"
+    ["$SCRIPT_DIR/.config/Code/User/settings.json"]="$HOMEDIR/.config/Code/User/settings.json"
 )
 
 _link_owner=""
