@@ -11,8 +11,16 @@ BACKUP_DIR="$HOME/Backups/Email"
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
+WORK_DIR=""
+STAGING_DIR=""
+cleanup() {
+    [[ -z "$WORK_DIR" ]] || rm -rf -- "$WORK_DIR"
+    [[ -z "$STAGING_DIR" ]] || rm -rf -- "$STAGING_DIR"
+}
+trap cleanup EXIT
+
 WORK_DIR="$(mktemp -d)"
-trap 'rm -rf -- "$WORK_DIR"' EXIT
+STAGING_DIR="$(mktemp -d "$BACKUP_DIR/.gmail-backup.XXXXXX")"
 
 MAILDIR="$WORK_DIR/mail"
 mkdir -p "$MAILDIR"
@@ -46,7 +54,7 @@ EOF
 mbsync -c "$WORK_DIR/mbsyncrc" gmail
 
 FILENAME="$(date +'%Y-%m-%d').zip.age"
-TMP_FILE="$BACKUP_DIR/$FILENAME.tmp"
+TMP_FILE="$STAGING_DIR/$FILENAME"
 
 (cd "$MAILDIR" && zip -9 -r -q - .) |
     age -r "$ENCRYPTION_PUB_KEY" -o "$TMP_FILE"

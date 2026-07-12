@@ -14,8 +14,16 @@ BACKUP_DIR="$HOME/Backups/S3"
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
+TMP_DIR=""
+STAGING_DIR=""
+cleanup() {
+    [[ -z "$TMP_DIR" ]] || rm -rf -- "$TMP_DIR"
+    [[ -z "$STAGING_DIR" ]] || rm -rf -- "$STAGING_DIR"
+}
+trap cleanup EXIT
+
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' EXIT
+STAGING_DIR="$(mktemp -d "$BACKUP_DIR/.s3-backup.XXXXXX")"
 
 buckets="$(aws s3api list-buckets --query 'Buckets[].Name' --output text)"
 
@@ -25,7 +33,7 @@ for bucket in $buckets; do
 done
 
 FILENAME="$(date +'%Y-%m-%dT%H-%M-%S').zip.age"
-TMP_FILE="$BACKUP_DIR/$FILENAME.tmp"
+TMP_FILE="$STAGING_DIR/$FILENAME"
 
 (cd "$TMP_DIR" && zip -1 -r -q - .) |
     age -r "$ENCRYPTION_PUB_KEY" -o "$TMP_FILE"

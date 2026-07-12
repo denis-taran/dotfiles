@@ -20,7 +20,9 @@ mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
 FILENAME="$(date +'%Y-%m-%dT%H-%M-%S').dump.age"
-TMP_FILE="$BACKUP_DIR/$FILENAME.tmp"
+STAGING_DIR="$(mktemp -d "$BACKUP_DIR/.db-backup.XXXXXX")"
+trap 'rm -rf -- "$STAGING_DIR"' EXIT
+TMP_FILE="$STAGING_DIR/$FILENAME"
 
 pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" \
     -d "$DB_NAME" -F c -b |

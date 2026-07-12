@@ -1,8 +1,8 @@
 [Unit]
-Description=Run S3 backup monthly on the 1st at 20:00
+Description=Run S3 backup monthly on the 1st at 23:00
 
 [Timer]
-OnCalendar=*-*-01 20:00:00
+OnCalendar=*-*-01 23:00:00
 Persistent=true
 
 [Install]

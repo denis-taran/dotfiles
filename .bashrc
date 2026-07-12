@@ -16,16 +16,10 @@ path_prepend "$HOME/Code/dotfiles/scripts"
 
 grep -qi microsoft /proc/version 2>/dev/null && _IS_WSL=1
 
-if [[ -n "$_IS_WSL" ]]; then
-    export PATH="/snap/bin:${PATH//:\/snap\/bin/}"
-fi
-
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
-
-export GIT_OPTIONAL_LOCKS=0
 
 [[ $- != *i* ]] && return
 

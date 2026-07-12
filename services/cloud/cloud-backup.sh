@@ -12,7 +12,9 @@ mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
 FILENAME="$(date +'%Y-%m-%d').zip.age"
-TMP_FILE="$BACKUP_DIR/$FILENAME.tmp"
+STAGING_DIR="$(mktemp -d "$BACKUP_DIR/.cloud-backup.XXXXXX")"
+trap 'rm -rf -- "$STAGING_DIR"' EXIT
+TMP_FILE="$STAGING_DIR/$FILENAME"
 
 # cd follows the Proton symlink; use the lowest compression level
 (cd "$SOURCE_DIR" && zip -1 -r -q - .) |

@@ -5,7 +5,7 @@ umask 022
 trap 'echo "failed at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 readonly _KIND_VERSION="v0.31.0"
-readonly _KUBECTL_VERSION="v1.33.0"
+readonly _KUBECTL_VERSION="v1.35.6"
 readonly _YQ_VERSION="v4.53.2"
 readonly _ANSIBLE_VERSION="13.6.0"
 readonly _DOTNET_SDK_VERSION="10.0"
@@ -17,8 +17,8 @@ declare -Ar _KIND_SHA256=(
 )
 
 declare -Ar _KUBECTL_SHA256=(
-    [amd64]="9efe8d3facb23e1618cba36fb1c4e15ac9dc3ed5a2c2e18109e4a66b2bac12dc"
-    [arm64]="48541d119455ac5bcc5043275ccda792371e0b112483aa0b29378439cf6322b9"
+    [amd64]="5d11e2ba01ea68ffd053f56e27738e2b4330013ee67f7e46c6da6c585d3c9926"
+    [arm64]="c0f97f31c9ddc22d4951d543a1a7125a9af4b31e895ad4aa99899c4ba2a6ff0b"
 )
 
 declare -A _YQ_SHA256=(
