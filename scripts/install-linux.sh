@@ -9,7 +9,7 @@ readonly _KUBECTL_VERSION="v1.33.0"
 readonly _YQ_VERSION="v4.53.2"
 readonly _ANSIBLE_VERSION="13.6.0"
 readonly _DOTNET_SDK_VERSION="10.0"
-NODE_SNAP_CHANNEL="24/stable"
+readonly _NODE_MAJOR="24"
 
 declare -Ar _KIND_SHA256=(
     [amd64]="eb244cbafcc157dff60cf68693c14c9a75c4e6e6fedaf9cd71c58117cb93e3fa"
@@ -38,6 +38,7 @@ readonly _1PASSWORD_GPG_FP="3FEF9748469ADBE15DA7CA80AC2D62742012EA22"
 readonly _CLAUDE_GPG_FP="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
 readonly _AWS_CLI_GPG_FP="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"
 readonly _GOOGLE_GPG_FP="EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"
+_NODESOURCE_GPG_FP="6F71F525282841EEDAF851B42F59B5F99B1BE0B4"
 
 _is_root=false
 [ "$EUID" -eq 0 ] && _is_root=true
@@ -243,8 +244,6 @@ if $_is_ubuntu && $_is_root; then
     update-locale LANG=en_US.UTF-8
 
     sudo -u "$USERNAME" -H git lfs install
-
-    snap list node >/dev/null 2>&1 || snap install node --classic --channel="$NODE_SNAP_CHANNEL"
 
     # pipx becuase the ansible PPA is perpetually broken on new ubuntu releases
     if sudo -u "$USERNAME" -H bash -c 'pipx list --json 2>/dev/null | jq -e ".venvs | has(\"ansible\")" >/dev/null'; then
@@ -620,10 +619,18 @@ if $_is_ubuntu && $_is_root; then
     printf 'deb [arch=%s signed-by=/etc/apt/keyrings/claude-code.gpg] https://downloads.claude.ai/claude-code/apt/stable stable main\n' \
         "$_arch" >/etc/apt/sources.list.d/claude-code.list
 
+    apt_key "https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key" \
+        "/etc/apt/keyrings/nodesource.gpg" \
+        "" "$_NODESOURCE_GPG_FP" >/dev/null
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_%s.x nodistro main\n' \
+        "$_arch" "$_NODE_MAJOR" >/etc/apt/sources.list.d/nodesource.list
+    printf 'Package: nodejs\nPin: origin deb.nodesource.com\nPin-Priority: 600\n' \
+        >/etc/apt/preferences.d/nodejs
+
     apt-get update
 
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
-        azure-cli claude-code helm "dotnet-sdk-${_DOTNET_SDK_VERSION}" terraform
+        azure-cli claude-code helm "dotnet-sdk-${_DOTNET_SDK_VERSION}" nodejs terraform
 
     if ! is_wsl; then
         apt_key "https://downloads.1password.com/linux/keys/1password.asc" \
