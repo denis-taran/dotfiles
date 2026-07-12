@@ -8,4 +8,7 @@ LoadCredential=encryption-pub-key:/etc/credstore/cloud-encryption-pub-key
 ExecStart=/usr/local/libexec/dotfiles/cloud-backup.sh
 
 # Sandboxing (common directives appended from lib/sandbox.conf at install time)
+BindReadOnlyPaths=/home/%i/Proton
+BindPaths="/home/%i/Backups/Cloud Storage"
+ReadWritePaths="/home/%i/Backups/Cloud Storage"
 RestrictAddressFamilies=AF_UNIX

@@ -12,5 +12,6 @@ LoadCredential=clockify-user-id:/etc/credstore/clockify-user-id
 ExecStart=/usr/bin/python3 /usr/local/libexec/dotfiles/clockify-backup.py
 
 # Sandboxing (common directives appended from lib/sandbox.conf at install time)
-InaccessiblePaths=-/home/%i/.ssh -/home/%i/.gnupg -/home/%i/.config/1Password
+BindPaths=/home/%i/Backups/Clockify
+ReadWritePaths=/home/%i/Backups/Clockify
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

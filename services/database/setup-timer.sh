@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/setup-common.sh"
 
 ensure_credstore
+ensure_backup_dir "Database"
 
 echo "Enter database credentials:"
 store_credential db-host "Host"

@@ -8,4 +8,7 @@ LoadCredential=encryption-pub-key:/etc/credstore/code-encryption-pub-key
 ExecStart=/usr/local/libexec/dotfiles/code-backup.sh
 
 # Sandboxing (common directives appended from lib/sandbox.conf at install time)
+BindReadOnlyPaths=/home/%i/Code
+BindPaths=/home/%i/Backups/Code
+ReadWritePaths=/home/%i/Backups/Code
 RestrictAddressFamilies=AF_UNIX

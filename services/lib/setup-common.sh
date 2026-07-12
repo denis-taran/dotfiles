@@ -16,6 +16,19 @@ ensure_credstore() {
     sudo install -d -m 700 "$CRED_DIR"
 }
 
+# Create a persistent destination before systemd bind-mounts it into the sandbox.
+ensure_backup_dir() {
+    local name="${1:?backup directory name required}"
+    local target_home
+    target_home="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+    if [[ -z "$target_home" ]]; then
+        echo "Could not find the home directory for $TARGET_USER." >&2
+        return 1
+    fi
+    sudo -u "$TARGET_USER" -H install -d -m 0700 "$target_home/Backups"
+    sudo -u "$TARGET_USER" -H install -d -m 0700 "$target_home/Backups/$name"
+}
+
 # store_credential <name> <prompt> [secret] -- secret=true hides input
 store_credential() {
     local name="$1" prompt="$2" secret="${3:-false}"

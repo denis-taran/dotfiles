@@ -13,5 +13,6 @@ LoadCredential=encryption-pub-key:/etc/credstore/s3-encryption-pub-key
 ExecStart=/usr/local/libexec/dotfiles/s3-backup.sh
 
 # Sandboxing (common directives appended from lib/sandbox.conf at install time)
-InaccessiblePaths=-/home/%i/.ssh -/home/%i/.gnupg -/home/%i/.config/1Password
+BindPaths=/home/%i/Backups/S3
+ReadWritePaths=/home/%i/Backups/S3
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

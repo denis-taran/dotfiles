@@ -748,8 +748,13 @@ fi
 ## Desktop Environment
 ###############################################################################
 
-is_wsl && exit 1
-systemctl get-default 2>/dev/null | grep -q 'graphical' || exit 1
+if ! $_is_root || is_wsl; then
+    exit 0
+fi
+if ! systemctl get-default 2>/dev/null | grep -q 'graphical'; then
+    echo "No graphical desktop detected. Skipping GUI apps."
+    exit 0
+fi
 
 echo "Desktop environment detected. GUI apps will be installed."
 
@@ -763,7 +768,7 @@ if [[ "$_arch" == "amd64" ]]; then
         "https://dl.google.com/linux/linux_signing_key.pub" \
         "/etc/apt/keyrings/google-chrome.gpg" \
         "" "$_GOOGLE_GPG_FP" >/dev/null
-    printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main\n' \
+    printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main\n' \
         >/etc/apt/sources.list.d/google-chrome.list
 fi
 

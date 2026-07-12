@@ -196,8 +196,8 @@ fi
 
 export HISTCONTROL=ignoreboth
 export HISTIGNORE="&:[ ]*:exit:ls:bg:fg:history:clear:pwd:jobs:cd"
-export HISTSIZE=100000
-export HISTFILESIZE=200000
+export HISTSIZE=4000
+export HISTFILESIZE=10000
 
 ###############################################################################
 # Kubernetes & Docker/Podman

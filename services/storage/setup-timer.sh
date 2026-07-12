@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/setup-common.sh"
 
 ensure_credstore
+ensure_backup_dir "S3"
 
 echo "Enter AWS credentials:"
 store_credential s3-access-key "Access Key ID"
