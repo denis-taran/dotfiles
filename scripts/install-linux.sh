@@ -89,6 +89,26 @@ is_wsl() {
     grep -qi "microsoft" /proc/version 2>/dev/null
 }
 
+has_graphical_desktop() {
+    ! is_wsl && systemctl get-default 2>/dev/null | grep -qx 'graphical.target'
+}
+
+remove_snapd() {
+    local snap_name
+    if command -v snap >/dev/null 2>&1; then
+        while read -r snap_name; do
+            snap remove --purge "$snap_name"
+        done < <(snap list | awk 'NR > 1 && $1 != "snapd" && $NF !~ /base/ { print $1 }')
+        while read -r snap_name; do
+            snap remove --purge "$snap_name"
+        done < <(snap list | awk 'NR > 1 && $1 != "snapd" { print $1 }')
+        snap remove --purge snapd >/dev/null 2>&1 || true
+    fi
+
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+        apt-get -o DPkg::Lock::Timeout=300 purge -y snapd
+}
+
 run_as_user() {
     if $_is_root; then
         sudo -u "$USERNAME" -H "$@"
@@ -215,7 +235,6 @@ if $_is_ubuntu && $_is_root; then
         "ripgrep"
         "shellcheck"
         "shfmt"
-        "snapd"
         "tealdeer"
         "tmux"
         "uidmap"
@@ -755,11 +774,16 @@ fi
 ## Desktop Environment
 ###############################################################################
 
-if ! $_is_root || is_wsl; then
+if ! $_is_root; then
     exit 0
 fi
-if ! systemctl get-default 2>/dev/null | grep -q 'graphical'; then
-    echo "No graphical desktop detected. Skipping GUI apps."
+if ! has_graphical_desktop; then
+    remove_snapd
+    if is_wsl; then
+        echo "WSL detected. Snap removed; skipping GUI apps."
+    else
+        echo "No graphical desktop detected. Snap removed; skipping GUI apps."
+    fi
     exit 0
 fi
 
