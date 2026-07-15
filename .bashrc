@@ -28,6 +28,9 @@ export XDG_STATE_HOME="$HOME/.local/state"
 ###############################################################################
 
 alias g='git'
+alias gau='git add -u'
+alias gaa='git add -A'
+alias gap='git add -p'
 alias gc='git commit'
 alias gcm='git commit -m'
 alias gwip='git add -A && git commit -m wip'

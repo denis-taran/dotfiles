@@ -42,6 +42,9 @@ function showpath { $env:PATH -split [IO.Path]::PathSeparator }
 
 Set-Alias -Name g -Value git
 Remove-Item -Path Alias:gc, Alias:gcm, Alias:gl, Alias:gp -Force -ErrorAction SilentlyContinue
+function gau { git add -u @args }
+function gaa { git add -A @args }
+function gap { git add -p @args }
 function gc { git commit @args }
 function gcm { git commit -m @args }
 function gwip { git add -A; git commit -m wip }

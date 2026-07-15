@@ -94,5 +94,6 @@
     "workbench.preferredDarkColorTheme": "Dark 2026",
     "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "fullSolution",
     "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution",
-    "python.analysis.typeCheckingMode": "basic"
+    "python.analysis.typeCheckingMode": "basic",
+    "dotnet.preferVisualStudioCodeFileSystemWatcher": true
 }
