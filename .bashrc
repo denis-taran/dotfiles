@@ -247,9 +247,44 @@ fi
 # Prompt
 ###############################################################################
 
+shopt -s promptvars
+declare -a _prompt_text=()
+
 function clr {
     local -n _out="$1"
-    [[ -n "$2" ]] && _out+="\[\033[0;$3\]$2\[\033[0m\]"
+    [[ -n "$2" ]] || return
+    local i=${#_prompt_text[@]}
+    _prompt_text[i]="$2"
+    _out+="\[\033[0;$3\]\${_prompt_text[$i]}\[\033[0m\]"
+}
+
+function _git_dir_is_bare {
+    local line section="" value bare=false
+    [[ -r "$1/config" ]] || return 1
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        line="${line%%;*}"
+        line="${line//[[:space:]]/}"
+        line="${line,,}"
+        if [[ "$line" == \[*\] ]]; then
+            section="$line"
+        elif [[ "$section" == "[core]" && "$line" == "bare" ]]; then
+            bare=true
+        elif [[ "$section" == "[core]" && "$line" == bare=* ]]; then
+            value="${line#bare=}"
+            value="${value#\"}"
+            value="${value%\"}"
+            if [[ "$value" == true || "$value" == yes || "$value" == on ||
+                "$value" =~ ^[+-]?[0-9]+$ && ! "$value" =~ ^[+-]?0+$ ]]; then
+                bare=true
+            else
+                bare=false
+            fi
+        fi
+    done <"$1/config"
+
+    [[ "$bare" == true ]]
 }
 
 function git_prompt {
@@ -271,43 +306,86 @@ function git_prompt {
         fi
         [[ "$d" == "/" ]] && break
         d="${d%/*}"
+        [[ -n "$d" ]] || d="/"
     done
     [[ -z "$gd" || ! -f "$gd/HEAD" ]] && return
-    if [[ "$git_file" == true && ! -f "$gd/commondir" ]]; then
+    if [[ "$git_file" == true && ! -f "$gd/commondir" ]] &&
+        _git_dir_is_bare "$gd"; then
         _git_prompt_out="[hub] "
         return
     fi
 
-    local head line oid=""
+    local head line oid="" branch="" state="" rebase_dir=""
     read -r head <"$gd/HEAD"
 
-    if [[ "$head" != ref:* ]]; then
-        _git_prompt_out="[DETACHED@${head:0:7}] "
-        return
-    fi
-
-    local common_gd="$gd"
-    if [[ -f "$gd/commondir" ]]; then
-        read -r common_gd <"$gd/commondir"
-        [[ "$common_gd" != /* ]] && common_gd="$gd/$common_gd"
-    fi
-
-    local branch="${head#ref: refs/heads/}"
-    if [[ -f "$common_gd/refs/heads/$branch" ]]; then
-        read -r oid <"$common_gd/refs/heads/$branch"
-    elif [[ -f "$common_gd/packed-refs" ]]; then
-        while read -r line; do
-            [[ "$line" == *" refs/heads/$branch" ]] && oid="$line" && break
-        done <"$common_gd/packed-refs"
-    fi
-
-    local state=""
-    if [[ -d "$gd/rebase-merge" || -d "$gd/rebase-apply" ]]; then
+    if [[ -d "$gd/rebase-merge" ]]; then
         state="|REBASE"
+        rebase_dir="$gd/rebase-merge"
+    elif [[ -d "$gd/rebase-apply" ]]; then
+        rebase_dir="$gd/rebase-apply"
+        if [[ -f "$rebase_dir/applying" ]]; then
+            state="|AM"
+        else
+            state="|REBASE"
+        fi
     elif [[ -f "$gd/MERGE_HEAD" ]]; then
         state="|MERGE"
     elif [[ -f "$gd/CHERRY_PICK_HEAD" ]]; then
         state="|CHERRY"
+    elif [[ -f "$gd/REVERT_HEAD" ]]; then
+        state="|REVERT"
+    elif [[ -f "$gd/BISECT_LOG" ]]; then
+        state="|BISECT"
+    fi
+
+    if [[ "$head" != "ref: "* ]]; then
+        oid="$head"
+        if [[ -n "$rebase_dir" && -f "$rebase_dir/head-name" ]]; then
+            read -r branch <"$rebase_dir/head-name"
+            branch="${branch#refs/heads/}"
+        fi
+        [[ -z "$branch" || "$branch" == "detached HEAD" ]] && branch="DETACHED"
+    else
+        local common_gd="$gd" ref="${head#ref: }"
+        [[ "$ref" == refs/* ]] || return
+        if [[ -f "$gd/commondir" ]]; then
+            read -r common_gd <"$gd/commondir"
+            [[ "$common_gd" != /* ]] && common_gd="$gd/$common_gd"
+        fi
+
+        if [[ "$ref" == refs/heads/* ]]; then
+            branch="${ref#refs/heads/}"
+        else
+            branch="${ref#refs/}"
+        fi
+        local lookup_ref="$ref" ref_value="" ref_path="" depth=0
+        while ((depth < 8)); do
+            ref_path="$common_gd/$lookup_ref"
+            [[ -f "$gd/$lookup_ref" ]] && ref_path="$gd/$lookup_ref"
+            [[ -f "$ref_path" ]] || break
+            ref_value=""
+            read -r ref_value <"$ref_path" || lookup_ref=""
+            if [[ "$ref_value" == "ref: refs/"* ]]; then
+                lookup_ref="${ref_value#ref: }"
+                ((depth += 1))
+            else
+                if [[ "$ref_value" =~ ^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$ ]]; then
+                    oid="$ref_value"
+                fi
+                lookup_ref=""
+                break
+            fi
+        done
+        ((depth < 8)) || lookup_ref=""
+
+        if [[ -z "$oid" && -n "$lookup_ref" && -f "$common_gd/packed-refs" ]]; then
+            while read -r line; do
+                if [[ "$line" == *" $lookup_ref" ]]; then
+                    oid="${line%% *}"
+                    break
+                fi
+            done <"$common_gd/packed-refs"
+        fi
     fi
 
     if ((${#branch} > 30)); then
@@ -336,6 +414,7 @@ function set_prompt {
     local exit_status=${__prompt_exit:-0}
 
     local ssh uchar uchar_color
+    _prompt_text=()
     _git_prompt_out=""
     git_prompt
     _kube_prompt_out=""

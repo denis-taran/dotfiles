@@ -210,12 +210,44 @@ function disable_kube_info {
 # Prompt
 ###############################################################################
 
+function Test-GitDirBare {
+    param([string]$GitDir)
+
+    $configPath = [IO.Path]::Combine($GitDir, "config")
+    if (-not [IO.File]::Exists($configPath)) { return $false }
+
+    $section = ""
+    $bare = $false
+    foreach ($configLine in [IO.File]::ReadAllLines($configPath)) {
+        $line = (($configLine -replace "[#;].*$", "") `
+                -replace "\s", "").ToLowerInvariant()
+        if ($line -match "^\[.*\]$") {
+            $section = $line
+        } elseif ($section -eq "[core]" -and $line -eq "bare") {
+            $bare = $true
+        } elseif ($section -eq "[core]" -and $line.StartsWith("bare=")) {
+            $value = $line.Substring(5).Trim([char]34)
+            if ($value -in @("true", "yes", "on") -or
+                ($value -match "^[+-]?[0-9]+$" -and
+                 $value -notmatch "^[+-]?0+$")) {
+                $bare = $true
+            } else {
+                $bare = $false
+            }
+        }
+    }
+    return $bare
+}
+
 function Get-GitInfo {
     $gitDir = $null
-    for ($d = $PWD.Path; $d; $d = [IO.Path]::GetDirectoryName($d)) {
+    $gitFile = $false
+    if ($PWD.Provider.Name -ne "FileSystem") { return "" }
+    for ($d = $PWD.ProviderPath; $d; $d = [IO.Path]::GetDirectoryName($d)) {
         $g = [IO.Path]::Combine($d, ".git")
         if ([IO.Directory]::Exists($g)) { $gitDir = $g; break }
         if ([IO.File]::Exists($g)) {
+            $gitFile = $true
             $ref = [IO.File]::ReadAllText($g).Trim()
             if ($ref.StartsWith("gitdir: ")) {
                 $resolved = [IO.Path]::Combine(
@@ -228,49 +260,111 @@ function Get-GitInfo {
     }
     if (-not $gitDir) { return "" }
 
+    $commondirPath = [IO.Path]::Combine($gitDir, "commondir")
+    if ($gitFile -and -not [IO.File]::Exists($commondirPath) -and
+        (Test-GitDirBare $gitDir)) {
+        return "[hub]"
+    }
+
     $headPath = [IO.Path]::Combine($gitDir, "HEAD")
     if (-not [IO.File]::Exists($headPath)) { return "" }
     $head = [IO.File]::ReadAllText($headPath).Trim()
 
-    if (-not $head.StartsWith("ref: refs/heads/")) {
-        return "[DETACHED@$($head.Substring(0, [Math]::Min(7, $head.Length)))]"
-    }
-
-    $commonGitDir = $gitDir
-    $commondirPath = [IO.Path]::Combine($gitDir, "commondir")
-    if ([IO.File]::Exists($commondirPath)) {
-        $rel = [IO.File]::ReadAllText(
-            $commondirPath).Trim()
-        $commonGitDir = [IO.Path]::GetFullPath(
-            [IO.Path]::Combine($gitDir, $rel))
-    }
-
-    $branch = $head.Substring(16)
+    $branch = ""
     $oid = ""
-
-    $refPath = [IO.Path]::Combine($commonGitDir, "refs", "heads", $branch)
-    if ([IO.File]::Exists($refPath)) {
-        $oid = [IO.File]::ReadAllText($refPath).Trim()
-    } else {
-        $packedPath = [IO.Path]::Combine($commonGitDir, "packed-refs")
-        if ([IO.File]::Exists($packedPath)) {
-            $suffix = " refs/heads/$branch"
-            foreach ($line in [IO.File]::ReadAllLines($packedPath)) {
-                if ($line.EndsWith($suffix)) { $oid = $line; break }
-            }
-        }
-    }
-
     $state = ""
-    if ([IO.Directory]::Exists([IO.Path]::Combine($gitDir, "rebase-merge")) -or
-        [IO.Directory]::Exists([IO.Path]::Combine($gitDir, "rebase-apply"))) {
+    $rebaseDir = $null
+
+    $rebaseMergeDir = [IO.Path]::Combine($gitDir, "rebase-merge")
+    $rebaseApplyDir = [IO.Path]::Combine($gitDir, "rebase-apply")
+    if ([IO.Directory]::Exists($rebaseMergeDir)) {
         $state = "|REBASE"
+        $rebaseDir = $rebaseMergeDir
+    } elseif ([IO.Directory]::Exists($rebaseApplyDir)) {
+        $rebaseDir = $rebaseApplyDir
+        if ([IO.File]::Exists([IO.Path]::Combine($rebaseDir, "applying"))) {
+            $state = "|AM"
+        } else {
+            $state = "|REBASE"
+        }
     } elseif ([IO.File]::Exists([IO.Path]::Combine($gitDir, "MERGE_HEAD"))) {
         $state = "|MERGE"
     } elseif ([IO.File]::Exists(
         [IO.Path]::Combine($gitDir, "CHERRY_PICK_HEAD")
     )) {
         $state = "|CHERRY"
+    } elseif ([IO.File]::Exists([IO.Path]::Combine($gitDir, "REVERT_HEAD"))) {
+        $state = "|REVERT"
+    } elseif ([IO.File]::Exists([IO.Path]::Combine($gitDir, "BISECT_LOG"))) {
+        $state = "|BISECT"
+    }
+
+    if (-not $head.StartsWith("ref: ")) {
+        $oid = $head
+        if ($rebaseDir) {
+            $headNamePath = [IO.Path]::Combine($rebaseDir, "head-name")
+            if ([IO.File]::Exists($headNamePath)) {
+                $branch = [IO.File]::ReadAllText($headNamePath).Trim()
+                if ($branch.StartsWith("refs/heads/")) {
+                    $branch = $branch.Substring(11)
+                }
+            }
+        }
+        if (-not $branch -or $branch -eq "detached HEAD") {
+            $branch = "DETACHED"
+        }
+    } else {
+        $ref = $head.Substring(5)
+        if (-not $ref.StartsWith("refs/")) { return "" }
+        $commonGitDir = $gitDir
+        if ([IO.File]::Exists($commondirPath)) {
+            $rel = [IO.File]::ReadAllText(
+                $commondirPath).Trim()
+            $commonGitDir = [IO.Path]::GetFullPath(
+                [IO.Path]::Combine($gitDir, $rel))
+        }
+
+        if ($ref.StartsWith("refs/heads/")) {
+            $branch = $ref.Substring(11)
+        } else {
+            $branch = $ref.Substring(5)
+        }
+        $lookupRef = $ref
+        $depth = 0
+        while ($lookupRef -and $depth -lt 8) {
+            $refPath = [IO.Path]::Combine($commonGitDir, $lookupRef)
+            $worktreeRefPath = [IO.Path]::Combine($gitDir, $lookupRef)
+            if ([IO.File]::Exists($worktreeRefPath)) {
+                $refPath = $worktreeRefPath
+            }
+            if (-not [IO.File]::Exists($refPath)) { break }
+
+            $refValue = [IO.File]::ReadAllText($refPath).Trim()
+            if ($refValue.StartsWith("ref: refs/")) {
+                $lookupRef = $refValue.Substring(5)
+                $depth++
+            } else {
+                if ($refValue -match "^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$") {
+                    $oid = $refValue
+                }
+                $lookupRef = $null
+                break
+            }
+        }
+        if ($depth -ge 8) { $lookupRef = $null }
+
+        if (-not $oid -and $lookupRef) {
+            $packedPath = [IO.Path]::Combine($commonGitDir, "packed-refs")
+            if ([IO.File]::Exists($packedPath)) {
+                $suffix = " $lookupRef"
+                foreach ($line in [IO.File]::ReadAllLines($packedPath)) {
+                    if ($line.EndsWith($suffix)) {
+                        $oid = $line.Substring(0, $line.IndexOf(" "))
+                        break
+                    }
+                }
+            }
+        }
     }
 
     if ($branch.Length -gt 30) {
@@ -279,7 +373,8 @@ function Get-GitInfo {
             $branch.Substring($branch.Length - 15)
     }
     if ($oid) {
-        return "[$branch@$($oid.Substring(0, 7))$state]"
+        $shortOid = $oid.Substring(0, [Math]::Min(7, $oid.Length))
+        return "[$branch@$shortOid$state]"
     } else {
         return "[$branch$state]"
     }

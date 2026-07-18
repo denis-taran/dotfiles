@@ -6,7 +6,9 @@
 !.config/karabiner/
 !.config/keychron/
 !.config/nvim/
+!.config/pip/
 !.config/tmux/
 !.config/vs/
 settings.json
 !.config/Code/User/settings.json
+.nvimlog
