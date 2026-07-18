@@ -14,7 +14,7 @@
 	excludesfile = ~/.config/git/ignore
 	autocrlf = input
     symlinks = true
-    pager = less -FRX
+    pager = sh ~/.config/git/pager
 [color]
 	ui = true
 [color "diff-highlight"]
@@ -62,7 +62,10 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
-[include]
-    path = ~/.config/git/delta
+[delta]
+    navigate = true
+    dark = true
+    line-numbers = true
+    hyperlinks = true
 [include]
     path = ~/.config/git/local

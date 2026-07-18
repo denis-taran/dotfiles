@@ -90,7 +90,7 @@ function Install-DotFiles() {
     Set-Link -LinkPath "$Env:UserProfile/.config/git/attributes" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\attributes')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/ignore" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\ignore')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/config" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\config')
-    Set-Link -LinkPath "$Env:UserProfile/.config/git/delta" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\delta')
+    Set-Link -LinkPath "$Env:UserProfile/.config/git/pager" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\pager')
     Set-Link -LinkPath "$Env:UserProfile/.editorconfig" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.editorconfig')
 }
 
