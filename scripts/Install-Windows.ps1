@@ -314,6 +314,51 @@ function Set-SecurityBaseline() {
     }
 }
 
+function Set-DefenderAsrRules() {
+    if (-not (Get-Command Set-MpPreference -ErrorAction SilentlyContinue)) {
+        Write-Warning "Defender cmdlets unavailable. Skipping ASR rules."
+        return
+    }
+
+    $runningMode = (Get-MpComputerStatus -ErrorAction SilentlyContinue).AMRunningMode
+    if ($runningMode -ne 'Normal') {
+        Write-Warning "Defender is in '$runningMode' mode, ASR rules would not enforce. Skipping."
+        return
+    }
+
+    # 1 = block, 2 = audit only
+    # https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-overview
+    $asrRules = [ordered]@{
+        '56a863a9-875e-4185-98a7-b882c64b5ce5' = 1 # abuse of vulnerable signed drivers
+        '9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2' = 1 # credential theft from lsass
+        'e6db77e5-3df2-4cf1-b95a-636979351e5b' = 1 # persistence via wmi event subscription
+        'be9ba2d9-53ea-4cdc-84e5-9b1eeee46550' = 1 # executable content from mail and webmail
+        'd4f940ab-401b-4efc-aadc-ad5f3c50688a' = 1 # office child processes
+        '3b576869-a4ec-4529-8536-b80a7769e899' = 1 # office creating executable content
+        '75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84' = 1 # office injecting into other processes
+        '26190899-1602-49e8-8b27-eb1d0a1ce869' = 1 # outlook child processes
+        '92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b' = 1 # win32 api calls from office macros
+        '7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c' = 1 # adobe reader child processes
+        'd3e037e1-3eb8-44c8-a917-57927947596d' = 1 # js/vbs launching downloaded executables
+        'b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4' = 1 # unsigned processes running from usb
+        '33ddedf1-c6e0-47cb-833e-de6133960387' = 1 # rebooting into safe mode
+        'c0033c00-d16d-4114-a5a0-dc9b3a7d2ceb' = 1 # copied or impersonated system tools
+        '5beb7efe-fd9a-4556-801d-275e5ffc04cc' = 2 # obfuscated scripts
+        'd1e49aac-8f56-4280-b9ba-993a6d77406c' = 2 # process creation from psexec and wmi
+        'c1db55ab-c21a-4637-bb3f-a12568109d35' = 2 # ransomware heuristics
+    }
+
+    try {
+        Set-MpPreference `
+            -AttackSurfaceReductionRules_Ids @($asrRules.Keys) `
+            -AttackSurfaceReductionRules_Actions @($asrRules.Values) `
+            -ErrorAction Stop
+        Write-Host "asr rules applied" -ForegroundColor Green
+    } catch {
+        Write-Warning "Failed to apply ASR rules: $($_.Exception.Message)"
+    }
+}
+
 function Set-PowerManagement() {
     powercfg /hibernate on
     powercfg /setdcvalueindex SCHEME_CURRENT SUB_VIDEO VIDEOIDLE 0
@@ -804,6 +849,7 @@ if ($IsAdmin -and -not $IsWorkMachine) {
     Disable-Services
     Set-SecurityBaseline
     Set-WindowsSecurity
+    Set-DefenderAsrRules
     Set-DeveloperSettings
     Set-EdgeSettings
     Disable-ConnectivityFeatures
