@@ -200,15 +200,12 @@ function Uninstall-Preinstalled-Apps() {
         "*Microsoft.PowerAutomateDesktop*",
         "*MicrosoftPowerBIForWindows*",
         "*MicrosoftSolitaireCollection*",
-        "*Microsoft.Windows.DevHome*",
         "*Microsoft.Xbox.TCUI*",
         "*Microsoft.XboxGameOverlay*",
         "*Microsoft.XboxGamingOverlay*",
         "*Microsoft.XboxIdentityProvider*",
-        "*Microsoft.XboxSpeechToTextOverlay*",
         "*Microsoft.YourPhone*",
         "*Netflix*",
-        "*SkypeApp*",
         "*Spotify*",
         "*TikTok*",
         "*Twitter*",
@@ -286,6 +283,8 @@ function Disable-WindowsFeatures() {
 
 function Set-SecurityBaseline() {
     REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" /v EnableMulticast /t REG_DWORD /d 0 /f
+    REG ADD "HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" /v EnableMDNS /t REG_DWORD /d 0 /f
+    REG ADD "HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" /v EnableNetbios /t REG_DWORD /d 0 /f
     reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoDriveTypeAutoRun /t REG_DWORD /d 255 /f
     reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoDriveTypeAutoRun /t REG_DWORD /d 255 /f
     REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 1 /f
@@ -405,6 +404,7 @@ function Set-DeveloperSettings() {
     REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo" /V "Enabled" /T REG_DWORD /D 1 /F
     REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo" /V "Mode" /T REG_DWORD /D 2 /F
     REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /T REG_DWORD /F /V "AllowDevelopmentWithoutDevLicense" /D "1"
+    REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /V LongPathsEnabled /T REG_DWORD /D 1 /F
 }
 
 function Set-EdgeSettings() {
@@ -441,7 +441,12 @@ function Set-EdgeSettings() {
 function Disable-Copilot() {
     if (-not $CanEditRegistry) { return }
     reg add "HKCU\Software\Microsoft\input\Settings" /v InsightsEnabled /t REG_DWORD /d 0 /f
+    reg add "HKCU\Software\Policies\Microsoft\Windows\WindowsAI" /v DisableAIDataAnalysis /t REG_DWORD /d 1 /f
+    reg add "HKCU\Software\Policies\Microsoft\Windows\WindowsAI" /v DisableClickToDo /t REG_DWORD /d 1 /f
     if ($IsAdmin) {
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v DisableAIDataAnalysis /t REG_DWORD /d 1 /f
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v AllowRecallEnablement /t REG_DWORD /d 0 /f
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v DisableClickToDo /t REG_DWORD /d 1 /f
         reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v SettingsPageVisibility /t REG_SZ /d "hide:aicomponents;" /f
         reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v CopilotCDPPageContext /t REG_DWORD /d 0 /f
         reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v CopilotPageContext /t REG_DWORD /d 0 /f
@@ -471,6 +476,7 @@ function Set-ExplorerSettings() {
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V ShowInfoTip /T REG_dWORD /D 0 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V ShowSyncProviderNotifications /T REG_dWORD /D 0 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /V "UseCompactMode" /T REG_DWORD /D "1" /F
+    REG ADD "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /VE /F
     if ($IsAdmin) {
         REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /V DisableSearchBoxSuggestions /T REG_dWORD /D 1 /F
         $null = New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Force
@@ -486,6 +492,19 @@ function Disable-ConnectivityFeatures() {
     REG ADD "HKLM\SOFTWARE\Microsoft\WcmSvc\Tethering" /V RemoteStartupDisabled /T REG_dWORD /D 1 /F
     REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\Connect" /V AllowProjectionToPC /T REG_dWORD /D 0 /F
     REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\System" /V EnableCdp /T REG_dWORD /D 0 /F
+}
+
+function Set-TaskbarSettings() {
+    if (-not $CanEditRegistry) { return }
+    $advanced = "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+    REG ADD $advanced /V TaskbarDa /T REG_DWORD /D 0 /F
+    REG ADD $advanced /V TaskbarMn /T REG_DWORD /D 0 /F
+    REG ADD $advanced /V ShowTaskViewButton /T REG_DWORD /D 0 /F
+    REG ADD $advanced /V TaskbarAl /T REG_DWORD /D 0 /F
+    REG ADD $advanced /V TaskbarEndTask /T REG_DWORD /D 1 /F
+    REG ADD $advanced /V Start_IrisRecommendations /T REG_DWORD /D 0 /F
+    REG ADD $advanced /V Start_AccountNotifications /T REG_DWORD /D 0 /F
+    REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Search" /V SearchboxTaskbarMode /T REG_DWORD /D 0 /F
 }
 
 function Set-ThemeSettings() {
@@ -658,7 +677,7 @@ function Set-WindowsUpdateSettings {
     reg add HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v AUOptions /t REG_DWORD /d 4 /f
     reg add HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v NoAutoRebootWithLoggedOnUsers /t REG_DWORD /d 1 /f
     REG ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" /V AllowAutoWindowsUpdateDownloadOverMeteredNetwork /T REG_dWORD /D 0 /F
-    REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" /V DODownloadMode /T REG_dWORD /D 100 /F
+    REG ADD "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" /V DODownloadMode /T REG_dWORD /D 0 /F
 }
 
 function Set-XdgPaths() {
@@ -759,6 +778,7 @@ Set-NoSoundScheme
 Disable-Copilot
 Set-RegionalFormat
 Set-ExplorerSettings
+Set-TaskbarSettings
 Set-ThemeSettings
 Set-NotificationSettings
 Set-UIAnimations
