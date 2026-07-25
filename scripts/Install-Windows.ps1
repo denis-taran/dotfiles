@@ -565,8 +565,8 @@ function Disable-ContentDelivery() {
     reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"  /v SubscribedContent-353694Enabled /t REG_dWORD /d 0 /f
     reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v SubscribedContent-353696Enabled /t REG_dWORD /d 0 /f
     reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v SubscribedContent-353698Enabled /t REG_dWORD /d 0 /f
-    REG ADD "HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\CloudContent" /V "DisableThirdPartySuggestions" /T REG_DWORD /D 1 /F
     if ($IsAdmin) {
+        REG ADD "HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\CloudContent" /V "DisableThirdPartySuggestions" /T REG_DWORD /D 1 /F
         REG ADD "HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 0 /f
         REG ADD "HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\CloudContent" /v DisableWindowsConsumerFeatures /t REG_DWORD /d 1 /f
         REG ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /V AllowOnlineTips /T REG_dWORD /D 0 /F
@@ -628,8 +628,8 @@ function Enable-Virtualization() {
 
 function Set-PrivacySettings() {
     if (-not $CanEditRegistry) { return }
-    REG ADD "HKCU\Software\Policies\Microsoft\Windows\CloudContent" /V DisableTailoredExperiencesWithDiagnosticData /T REG_dWORD /D 1 /F
     if ($IsAdmin) {
+        REG ADD "HKCU\Software\Policies\Microsoft\Windows\CloudContent" /V DisableTailoredExperiencesWithDiagnosticData /T REG_dWORD /D 1 /F
         REG ADD "HKLM\Software\Policies\Microsoft\Windows\System" /V AllowCrossDeviceClipboard /T REG_DWORD /D 0 /F
         $null = New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" -Force -ErrorAction SilentlyContinue
         $null = New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Force -ErrorAction SilentlyContinue
