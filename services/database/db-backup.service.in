@@ -1,0 +1,20 @@
+[Unit]
+Description=Production database backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@TARGET_USER@
+LoadCredential=db-host:/etc/credstore/db-host
+LoadCredential=db-port:/etc/credstore/db-port
+LoadCredential=db-name:/etc/credstore/db-name
+LoadCredential=db-user:/etc/credstore/db-user
+LoadCredential=db-pgpass:/etc/credstore/db-pgpass
+LoadCredential=encryption-pub-key:/etc/credstore/db-encryption-pub-key
+ExecStart=/usr/local/libexec/dotfiles/db-backup.sh
+
+# Sandboxing (common directives appended from lib/sandbox.conf at install time)
+BindPaths="@TARGET_HOME@/Backups/Database"
+ReadWritePaths="@TARGET_HOME@/Backups/Database"
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

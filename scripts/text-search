@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -u
+
+for cmd in rg fzf code; do
+    command -v "$cmd" >/dev/null 2>&1 || {
+        echo "Error: $cmd is missing"
+        exit 1
+    }
+done
+
+# Run FZF
+# - {q} is the query the user types
+# - {1}, {2} are the file and line numer from the result list
+fzf --ansi --disabled \
+    --prompt='Search> ' \
+    --header='Type to search. Enter opens VS Code.' \
+    --delimiter=$'\t' \
+    --bind "start:reload:true" \
+    --bind "change:reload:[ -z \"{q}\" ] && exit 0; rg --column --line-number --no-heading --smart-case --color=always --colors='path:none' --colors='line:none' --colors='column:none' --colors='match:style:bold' --colors='match:fg:red' --field-match-separator '$(printf '\t')' -- {q} . 2>/dev/null" \
+    --bind "enter:execute-silent(code --goto {1}:{2}:{3})+abort" \
+    --preview "bat --color=always --style=numbers --highlight-line {2} {1} 2>/dev/null || batcat --color=always --style=numbers --highlight-line {2} {1} 2>/dev/null || awk -v target={2} 'BEGIN{start=target-10; if(start<1)start=1; end=target+10} NR>=start&&NR<=end{if(NR==target)printf \"\\033[1;31m> %4d %s\\033[0m\\n\",NR,\$0; else printf \"  %4d %s\\n\",NR,\$0}' {1}" \
+    --preview-window 'up,60%,border-bottom,+{2}-/2,~3'

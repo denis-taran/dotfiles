@@ -1,0 +1,17 @@
+[Unit]
+Description=Clockify time entries backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@TARGET_USER@
+LoadCredential=clockify-api-key:/etc/credstore/clockify-api-key
+LoadCredential=clockify-workspace-id:/etc/credstore/clockify-workspace-id
+LoadCredential=clockify-user-id:/etc/credstore/clockify-user-id
+ExecStart=/usr/bin/python3 /usr/local/libexec/dotfiles/clockify-backup.py
+
+# Sandboxing (common directives appended from lib/sandbox.conf at install time)
+BindPaths="@TARGET_HOME@/Backups/Clockify"
+ReadWritePaths="@TARGET_HOME@/Backups/Clockify"
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

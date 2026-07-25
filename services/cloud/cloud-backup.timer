@@ -1,0 +1,10 @@
+[Unit]
+Description=Run cloud storage backup monthly on the 1st at 22:00
+
+[Timer]
+OnCalendar=*-*-01 22:00:00
+Persistent=true
+Unit=cloud-backup.service
+
+[Install]
+WantedBy=timers.target

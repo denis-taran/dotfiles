@@ -1,0 +1,71 @@
+[commit]
+    verbose = true
+[pull]
+    rebase = true
+[branch]
+    autosetuprebase = always
+    sort = -committerdate
+[push]
+    default = current
+    autoSetupRemote = true
+    followTags = true
+[core]
+    attributesFile = ~/.config/git/attributes
+	excludesfile = ~/.config/git/ignore
+	autocrlf = input
+    symlinks = true
+    pager = sh ~/.config/git/pager
+[color]
+	ui = true
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22
+[color "diff"]
+	meta = 11
+	frag = magenta bold
+	commit = yellow bold
+	old = red bold
+	new = green bold
+	whitespace = red reverse
+	func = 146 bold
+[init]
+	defaultBranch = main
+[fetch]
+    prune = true
+    pruneTags = true
+[diff]
+    algorithm = histogram
+    colorMoved = default
+    renames = copies
+[rerere]
+    enabled = true
+    autoupdate = true
+[merge]
+    conflictstyle = zdiff3
+    log = true
+[rebase]
+    autoSquash = true
+    autoStash = true
+    updateRefs = true
+[tag]
+    sort = version:refname
+[checkout]
+    defaultRemote = origin
+[stash]
+    showPatch = true
+[apply]
+    whitespace = fix
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+[delta]
+    navigate = true
+    dark = true
+    line-numbers = true
+    hyperlinks = true
+[include]
+    path = ~/.config/git/local

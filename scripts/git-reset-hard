@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+    printf 'Error: %s\n' "$*" >&2
+    exit 1
+}
+
+command -v fzf >/dev/null 2>&1 || die "fzf is required."
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Run inside a Git repository."
+git rev-parse --verify HEAD >/dev/null 2>&1 || die "Repository has no commits."
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    printf 'Uncommitted tracked changes will be lost. Untracked files are not removed.\n' >&2
+    read -r -p "Continue? (y/N) " reply
+    [[ "$reply" =~ ^[Yy]$ ]] || exit 1
+fi
+
+set +e
+selected="$(
+    git log --pretty=format:'%h%x09%C(auto)%s%C(reset)%x09%C(black)%C(bold)%cr%C(reset)' |
+        fzf --ansi \
+            --delimiter=$'\t' \
+            --with-nth=2.. \
+            --height=80% --layout=reverse --tiebreak=index \
+            --preview 'git show --color=always {1}' \
+            --preview-window=down:60%:wrap \
+            --exit-0
+)"
+rc=$?
+set -e
+
+case "$rc" in
+0) : ;;
+1 | 130) exit 0 ;; # no selection / canceled
+*) die "fzf failed (exit code $rc)" ;;
+esac
+
+[[ -n "$selected" ]] || exit 0
+commit_id="${selected%%$'\t'*}"
+
+printf 'About to run: git reset --hard %s\n' "$commit_id" >&2
+read -r -p "Confirm? (y/N) " reply
+[[ "$reply" =~ ^[Yy]$ ]] || exit 1
+
+git reset --hard "$commit_id"

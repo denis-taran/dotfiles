@@ -1,0 +1,17 @@
+[Unit]
+Description=Gmail mailbox backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@TARGET_USER@
+LoadCredential=gmail-user:/etc/credstore/gmail-user
+LoadCredential=gmail-app-password:/etc/credstore/gmail-app-password
+LoadCredential=encryption-pub-key:/etc/credstore/gmail-encryption-pub-key
+ExecStart=/usr/local/libexec/dotfiles/gmail-backup.sh
+
+# Sandboxing (common directives appended from lib/sandbox.conf at install time)
+BindPaths="@TARGET_HOME@/Backups/Email"
+ReadWritePaths="@TARGET_HOME@/Backups/Email"
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

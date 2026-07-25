@@ -1,0 +1,99 @@
+{
+    "[csharp]": {
+        "editor.defaultFormatter": "ms-dotnettools.csharp"
+    },
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        }
+    },
+    "[markdown]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.quickSuggestions": {
+            "comments": "off",
+            "other": "off",
+            "strings": "off"
+        },
+        "files.trimTrailingWhitespace": false
+    },
+    "[typescript][typescriptreact][javascript][javascriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+            "source.fixAll.eslint": "explicit"
+        }
+    },
+    "editor.autoClosingBrackets": "languageDefined",
+    "editor.bracketPairColorization.enabled": true,
+    "editor.codeLens": false,
+    "editor.cursorBlinking": "smooth",
+    "editor.cursorSmoothCaretAnimation": "on",
+    "editor.formatOnSave": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.guides.indentation": false,
+    "editor.hover.enabled": "on",
+    "editor.inlayHints.enabled": "off",
+    "editor.lightbulb.enabled": "off",
+    "editor.linkedEditing": true,
+    "editor.minimap.enabled": false,
+    "editor.rename.enablePreview": false,
+    "editor.renderLineHighlight": "all",
+    "editor.renderLineHighlightOnlyWhenFocus": true,
+    "editor.scrollBeyondLastColumn": 5,
+    "editor.smoothScrolling": true,
+    "editor.stickyScroll.enabled": true,
+    "explorer.compactFolders": true,
+    "extensions.ignoreRecommendations": true,
+    "files.exclude": {
+        "**/.DS_Store": true,
+        "**/__pycache__": true
+    },
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "files.trimTrailingWhitespace": true,
+    "files.watcherExclude": {
+        "**/.next/**": true,
+        "**/.terraform/**": true,
+        "**/.venv/**": true,
+        "**/bin/**": true,
+        "**/coverage/**": true,
+        "**/dist/**": true,
+        "**/obj/**": true
+    },
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "git.enableSmartCommit": true,
+    "git.pruneOnFetch": true,
+    "github.copilot.enable": {
+        "*": false
+    },
+    "search.exclude": {
+        "**/.git": true,
+        "**/.terraform": true,
+        "**/.venv": true,
+        "**/build": true,
+        "**/coverage": true,
+        "**/dist": true,
+        "**/node_modules": true
+    },
+    "telemetry.telemetryLevel": "off",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.enableMultiLinePasteWarning": "never",
+    "terminal.integrated.scrollback": 10000,
+    "terminal.integrated.shellIntegration.enabled": true,
+    "window.commandCenter": false,
+    "workbench.editor.enablePreview": false,
+    "workbench.editor.enablePreviewFromQuickOpen": false,
+    "workbench.list.smoothScrolling": true,
+    "workbench.settings.applyToAllProfiles": [],
+    "workbench.tree.renderIndentGuides": "none",
+    "zenMode.hideStatusBar": false,
+    "window.autoDetectColorScheme": true,
+    "workbench.preferredLightColorTheme": "Light 2026",
+    "workbench.preferredDarkColorTheme": "Dark 2026",
+    "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "fullSolution",
+    "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution",
+    "python.analysis.typeCheckingMode": "basic",
+    "dotnet.preferVisualStudioCodeFileSystemWatcher": true
+}

@@ -1,0 +1,14 @@
+[Unit]
+Description=Cloud storage (Proton) backup
+
+[Service]
+Type=oneshot
+User=@TARGET_USER@
+LoadCredential=encryption-pub-key:/etc/credstore/cloud-encryption-pub-key
+ExecStart=/usr/local/libexec/dotfiles/cloud-backup.sh
+
+# Sandboxing (common directives appended from lib/sandbox.conf at install time)
+BindReadOnlyPaths="@TARGET_HOME@/Proton"
+BindPaths="@TARGET_HOME@/Backups/Cloud Storage"
+ReadWritePaths="@TARGET_HOME@/Backups/Cloud Storage"
+RestrictAddressFamilies=AF_UNIX
