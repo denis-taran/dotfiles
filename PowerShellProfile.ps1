@@ -454,6 +454,18 @@ Set-PSReadLineOption -BellStyle None
 Set-PSReadLineOption -HistoryNoDuplicates:$true
 Set-PSReadLineOption -HistorySearchCursorMovesToEnd:$true
 
+Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
+Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
+
+$_psReadLine = Get-Module PSReadLine
+if ($_psReadLine -and $_psReadLine.Version -ge [version]'2.2.0') {
+    Set-PSReadLineOption -PredictionSource HistoryAndPlugin
+    Set-PSReadLineOption -PredictionViewStyle ListView
+} elseif ($_psReadLine -and $_psReadLine.Version -ge [version]'2.1.0') {
+    Set-PSReadLineOption -PredictionSource History
+    Set-PSReadLineOption -PredictionViewStyle ListView
+}
+
 ###############################################################################
 # .NET
 ###############################################################################
