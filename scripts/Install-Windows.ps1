@@ -542,13 +542,15 @@ function Disable-ConnectivityFeatures() {
 function Set-TaskbarSettings() {
     if (-not $CanEditRegistry) { return }
     $advanced = "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+    $personalize = "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
     REG ADD $advanced /V TaskbarDa /T REG_DWORD /D 0 /F
     REG ADD $advanced /V TaskbarMn /T REG_DWORD /D 0 /F
-    REG ADD $advanced /V ShowTaskViewButton /T REG_DWORD /D 0 /F
-    REG ADD $advanced /V TaskbarAl /T REG_DWORD /D 0 /F
+    REG ADD $advanced /V ShowTaskViewButton /T REG_DWORD /D 1 /F
+    REG ADD $advanced /V TaskbarAl /T REG_DWORD /D 1 /F
     REG ADD $advanced /V TaskbarEndTask /T REG_DWORD /D 1 /F
     REG ADD $advanced /V Start_IrisRecommendations /T REG_DWORD /D 0 /F
     REG ADD $advanced /V Start_AccountNotifications /T REG_DWORD /D 0 /F
+    REG ADD $personalize /V EnableTransparency /T REG_DWORD /D 1 /F
     REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Search" /V SearchboxTaskbarMode /T REG_DWORD /D 0 /F
 }
 
