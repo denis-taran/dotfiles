@@ -88,7 +88,7 @@ venv() {
 
 if command -v eza >/dev/null 2>&1; then
     alias lg='eza --git -l --color=auto'
-    alias ll='eza -lh --color=auto'
+    alias ll='eza -lah --group-directories-first --color=auto'
     alias ls='eza --color=auto'
     alias tree='eza --tree --color=auto'
 fi

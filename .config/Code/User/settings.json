@@ -47,7 +47,9 @@
     "extensions.ignoreRecommendations": true,
     "files.exclude": {
         "**/.DS_Store": true,
-        "**/__pycache__": true
+        "**/__pycache__": true,
+        "**/dotnet": true,
+        "**/artifacts": true
     },
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
