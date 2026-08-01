@@ -49,14 +49,18 @@ alias grep='grep --color=auto'
 alias sudo='sudo '
 alias showpath='printf "%s\n" "$PATH" | tr ":" "\n"'
 
-a() {
+_a() {
+    set +f
+
     local output_file status
+    local -a prompt=()
+    [[ -n "$*" ]] && prompt=("$*")
 
     output_file="$(mktemp -t codex-a-output.XXXXXX)" || return 1
 
     command codex exec --skip-git-repo-check \
         -c model_reasoning_effort=medium \
-        --output-last-message "$output_file" "$@" \
+        --output-last-message "$output_file" "${prompt[@]}" \
         >/dev/null 2>/dev/null
     status=$?
 
@@ -68,6 +72,8 @@ a() {
     rm -f "$output_file"
     return "$status"
 }
+
+alias a='set -f; _a'
 
 if [[ -n "$_IS_WSL" ]]; then
     alias pbcopy='sed "s/\x1B\[[0-9;]*[mK]//g" | clip.exe'
