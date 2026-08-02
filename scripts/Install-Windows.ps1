@@ -122,11 +122,22 @@ function Set-GitLocalConfig() {
     if (-not $curEmail) { $gitEmail = Read-Host "Git email" }
 
     $keyLine = $null
+    $allowedSigningKey = $null
     if (-not $curKey) {
         $keyLine = (Read-Host `
-            "SSH public key for commit signing (blank to skip)").Trim()
-        if ($keyLine -and $keyLine -notmatch '^ssh-') {
-            throw "not an SSH public key (must start with ssh-)"
+            "SSH public key or certificate file for commit signing (blank to skip)").Trim()
+        if ($keyLine -and $keyLine -notmatch '^(ssh-|ecdsa-|sk-)') {
+            $keyPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($keyLine)
+            if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
+                throw "SSH signing certificate file not found: $keyLine"
+            }
+            $keyLine = $keyPath
+            $allowedSigningKey = (Get-Content -LiteralPath $keyPath -TotalCount 1).Trim()
+        } else {
+            $allowedSigningKey = $keyLine
+        }
+        if ($keyLine -and $allowedSigningKey -notmatch '^(ssh-|ecdsa-|sk-)') {
+            throw "not an SSH public key or certificate (contents must start with ssh-)"
         }
     }
 
@@ -147,7 +158,7 @@ function Set-GitLocalConfig() {
         git config -f $gitLocalConfig `
             gpg.ssh.allowedSignersFile $allowedSigners
         Backup-File $allowedSigners
-        [System.IO.File]::WriteAllText($allowedSigners, "$gitEmail $keyLine`n", [System.Text.UTF8Encoding]::new($false))
+        [System.IO.File]::WriteAllText($allowedSigners, "$gitEmail $allowedSigningKey`n", [System.Text.UTF8Encoding]::new($false))
     }
 
 }

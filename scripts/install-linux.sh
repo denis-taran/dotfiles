@@ -438,18 +438,30 @@ fi
 
 if [[ "$_git_cfg_list" != *"user.signingkey="* ]]; then
     GIT_SSH_KEY="${GIT_SSH_SIGNING_KEY:-}"
-    [[ -z "$GIT_SSH_KEY" ]] && read -r -p "SSH public key for commit signing (blank to skip): " GIT_SSH_KEY
+    [[ -z "$GIT_SSH_KEY" ]] && read -r -p "SSH public key or certificate file for commit signing (blank to skip): " GIT_SSH_KEY
     if [[ -n "$GIT_SSH_KEY" ]]; then
-        [[ "${GIT_SSH_KEY%% *}" != ssh-* ]] && {
-            echo "not an SSH public key (must start with ssh-)" >&2
+        _signing_key="$GIT_SSH_KEY"
+        _allowed_signing_key="$GIT_SSH_KEY"
+        if [[ "${GIT_SSH_KEY%% *}" != ssh-* && "${GIT_SSH_KEY%% *}" != ecdsa-* && "${GIT_SSH_KEY%% *}" != sk-* ]]; then
+            [[ "$GIT_SSH_KEY" == \~/* ]] && GIT_SSH_KEY="$HOMEDIR/${GIT_SSH_KEY#\~/}"
+            [[ -f "$GIT_SSH_KEY" ]] || {
+                echo "SSH signing certificate file not found: $GIT_SSH_KEY" >&2
+                exit 1
+            }
+            GIT_SSH_KEY=$(realpath "$GIT_SSH_KEY")
+            _signing_key="$GIT_SSH_KEY"
+            IFS= read -r _allowed_signing_key <"$GIT_SSH_KEY" || [[ -n "$_allowed_signing_key" ]]
+        fi
+        [[ "${_allowed_signing_key%% *}" == ssh-* || "${_allowed_signing_key%% *}" == ecdsa-* || "${_allowed_signing_key%% *}" == sk-* ]] || {
+            echo "not an SSH public key or certificate (contents must start with ssh-)" >&2
             exit 1
         }
         run_as_user git config -f "$_git_cfg" \
-            user.signingkey "$GIT_SSH_KEY"
+            user.signingkey "$_signing_key"
         run_as_user git config -f "$_git_cfg" commit.gpgsign true
         run_as_user git config -f "$_git_cfg" gpg.format ssh
         run_as_user git config -f "$_git_cfg" gpg.ssh.allowedSignersFile "$_allowed_signers"
-        echo "$GIT_EMAIL $GIT_SSH_KEY" | run_as_user tee "$_allowed_signers" >/dev/null
+        printf '%s %s\n' "$GIT_EMAIL" "$_allowed_signing_key" | run_as_user tee "$_allowed_signers" >/dev/null
         chmod 600 "$_allowed_signers"
     fi
 fi
