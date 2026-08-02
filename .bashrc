@@ -528,7 +528,11 @@ bind Space:magic-space
 bind '"\eOP": "text-search\n"'
 
 if command -v fzf >/dev/null 2>&1; then
-    export FZF_DEFAULT_COMMAND='git ls-files --cached --others --exclude-standard'
+    if command -v fd >/dev/null 2>&1; then
+        export FZF_DEFAULT_COMMAND='git ls-files --cached --others --exclude-standard 2>/dev/null || fd --type f --hidden --exclude .git'
+    else
+        export FZF_DEFAULT_COMMAND='git ls-files --cached --others --exclude-standard 2>/dev/null || find . -type f -not -path "*/.git/*"'
+    fi
     export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 
     eval "$(fzf --bash)"
