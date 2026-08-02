@@ -526,3 +526,10 @@ command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 
 bind Space:magic-space
 bind '"\eOP": "text-search\n"'
+
+if command -v fzf >/dev/null 2>&1; then
+    export FZF_DEFAULT_COMMAND='git ls-files --cached --others --exclude-standard'
+    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+
+    eval "$(fzf --bash)"
+fi
