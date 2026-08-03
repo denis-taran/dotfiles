@@ -110,11 +110,28 @@ portkill() {
     lsof -ti ":$1" | xargs -r kill
 }
 
-# Resolve a project (optionally a worktree) to its directory, printed to stdout.
+###############################################################################
+# Project Navigation
+###############################################################################
+
 _p_resolve() {
     local code_dir="$HOME/Code"
-    local pdir="$code_dir/${1:?project name required}"
-    local wt_list wt_count target
+    local name="${1:?project name required}"
+    local project="${name%%/*}"
+    local subdir=""
+    local pdir wt_list wt_count target
+
+    if [[ "$name" == */* ]]; then
+        subdir="${name#*/}"
+        case "$subdir" in
+        /* | .. | ../* | */.. | */../*)
+            printf 'Invalid project subdirectory: %s\n' "$subdir" >&2
+            return 1
+            ;;
+        esac
+    fi
+
+    pdir="$code_dir/$project"
 
     [[ -d "$pdir" ]] ||
         {
@@ -123,31 +140,26 @@ _p_resolve() {
         }
 
     wt_list="$(git -C "$pdir" worktree list 2>/dev/null)" ||
-        {
-            printf '%s\n' "$pdir"
-            return
-        }
+        target="$pdir"
 
-    wt_count="$(wc -l <<<"$wt_list")"
-    ((wt_count > 1)) ||
-        {
-            printf '%s\n' "$pdir"
-            return
-        }
-
-    if [[ -n "${2-}" ]]; then
-        target="$(awk -v wt="$2" '
-            { br = $NF; gsub(/^\[|\]$/, "", br) }
-            br == wt { print $1; exit }
-        ' <<<"$wt_list")"
-    else
-        target="$(awk '
-            { fallback=$1 }
-            /\[main\]/   { preferred=$1 }
-            /\[master\]/ && !preferred { preferred=$1 }
-            !/\(bare\)/ && !first { first=$1 }
-            END { print preferred ? preferred : first ? first : fallback }
-        ' <<<"$wt_list")"
+    if [[ -z "$target" ]]; then
+        wt_count="$(wc -l <<<"$wt_list")"
+        if ((wt_count <= 1)); then
+            target="$pdir"
+        elif [[ -n "${2-}" ]]; then
+            target="$(awk -v wt="$2" '
+                { br = $NF; gsub(/^\[|\]$/, "", br) }
+                br == wt { print $1; exit }
+            ' <<<"$wt_list")"
+        else
+            target="$(awk '
+                { fallback=$1 }
+                /\[main\]/   { preferred=$1 }
+                /\[master\]/ && !preferred { preferred=$1 }
+                !/\(bare\)/ && !first { first=$1 }
+                END { print preferred ? preferred : first ? first : fallback }
+            ' <<<"$wt_list")"
+        fi
     fi
 
     [[ -n "$target" ]] ||
@@ -155,6 +167,16 @@ _p_resolve() {
             echo "Worktree not found: ${2:-default}" >&2
             return 1
         }
+
+    if [[ -n "$subdir" ]]; then
+        target="${target%/}/$subdir"
+        [[ -d "$target" ]] ||
+            {
+                printf 'Not found: %s\n' "$name" >&2
+                return 1
+            }
+    fi
+
     printf '%s\n' "$target"
 }
 
@@ -174,11 +196,26 @@ _p_completions() {
     local code_dir="$HOME/Code"
     local cur="${COMP_WORDS[$COMP_CWORD]}"
     if [[ $COMP_CWORD -eq 1 ]]; then
-        local words
-        words="$(command ls -1 "$code_dir" 2>/dev/null)"
-        mapfile -t COMPREPLY < <(compgen -W "$words" -- "$cur")
+        local base match project rel subdir
+        if [[ "$cur" == */* ]]; then
+            project="${cur%%/*}"
+            subdir="${cur#*/}"
+            base="$(_p_resolve "$project" 2>/dev/null)" || return
+
+            while IFS= read -r match; do
+                rel="${match#"${base%/}/"}"
+                COMPREPLY+=("$project/$rel/")
+            done < <(compgen -d -- "${base%/}/$subdir")
+            compopt -o filenames -o nospace 2>/dev/null || true
+        else
+            while IFS= read -r match; do
+                COMPREPLY+=("${match#"$code_dir/"}")
+            done < <(compgen -d -- "$code_dir/$cur")
+            compopt -o filenames -o nospace 2>/dev/null || true
+        fi
     elif [[ $COMP_CWORD -eq 2 ]]; then
-        local pdir="$code_dir/${COMP_WORDS[1]}"
+        local branches
+        local pdir="$code_dir/${COMP_WORDS[1]%%/*}"
         if [[ -d "$pdir" ]]; then
             branches="$(
                 git -C "$pdir" worktree list 2>/dev/null |

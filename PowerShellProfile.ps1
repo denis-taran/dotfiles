@@ -76,57 +76,76 @@ function Resolve-Project {
     $codeDir = Join-Path $HOME "Code"
     if (-not $Name) { Write-Error "project name required"; return $null }
 
-    $pdir = Join-Path $codeDir $Name
+    $nameParts = $Name -split '/', 2
+    $projectName = $nameParts[0]
+    $subdirectory = if ($nameParts.Count -gt 1) { $nameParts[1] } else { '' }
+    if ($subdirectory -and
+        ([IO.Path]::IsPathRooted($subdirectory) -or
+         ($subdirectory -split '[\\/]' -contains '..'))) {
+        Write-Error "Invalid project subdirectory: $subdirectory"
+        return $null
+    }
+
+    $pdir = Join-Path $codeDir $projectName
     if (-not (Test-Path -LiteralPath $pdir -PathType Container)) {
         Write-Error "Not found: $Name"; return $null
     }
 
+    $target = $pdir
     $porcelain = git -C $pdir worktree list --porcelain 2>$null
-    if ($LASTEXITCODE -ne 0 -or -not $porcelain) { return $pdir }
-
-    $trees = @()
-    $cur = $null
-    foreach ($line in $porcelain) {
-        if ($line -like 'worktree *') {
-            if ($cur) { $trees += $cur }
-            $cur = [ordered]@{
-                Path = $line.Substring(9); Branch = ''; Bare = $false
+    if ($LASTEXITCODE -eq 0 -and $porcelain) {
+        $trees = @()
+        $cur = $null
+        foreach ($line in $porcelain) {
+            if ($line -like 'worktree *') {
+                if ($cur) { $trees += $cur }
+                $cur = [ordered]@{
+                    Path = $line.Substring(9); Branch = ''; Bare = $false
+                }
+            } elseif ($line -eq 'bare') {
+                if ($cur) { $cur.Bare = $true }
+            } elseif ($line -like 'branch refs/heads/*') {
+                if ($cur) {
+                    $cur.Branch = $line.Substring('branch refs/heads/'.Length)
+                }
             }
-        } elseif ($line -eq 'bare') {
-            if ($cur) { $cur.Bare = $true }
-        } elseif ($line -like 'branch refs/heads/*') {
-            if ($cur) {
-                $cur.Branch = $line.Substring('branch refs/heads/'.Length)
+        }
+        if ($cur) { $trees += $cur }
+
+        if ($trees.Count -gt 1) {
+            if ($Worktree) {
+                $match = $trees |
+                    Where-Object { $_.Branch -eq $Worktree } |
+                    Select-Object -First 1
+                if (-not $match) {
+                    Write-Error "Worktree not found: $Worktree"; return $null
+                }
+                $target = $match.Path
+            } else {
+                $preferred = $trees |
+                    Where-Object { $_.Branch -eq 'main' } | Select-Object -First 1
+                if (-not $preferred) {
+                    $preferred = $trees |
+                        Where-Object { $_.Branch -eq 'master' } |
+                        Select-Object -First 1
+                }
+                if (-not $preferred) {
+                    $preferred = $trees |
+                        Where-Object { -not $_.Bare } | Select-Object -First 1
+                }
+                if (-not $preferred) { $preferred = $trees[0] }
+                $target = $preferred.Path
             }
         }
     }
-    if ($cur) { $trees += $cur }
 
-    if ($trees.Count -le 1) { return $pdir }
-
-    if ($Worktree) {
-        $match = $trees |
-            Where-Object { $_.Branch -eq $Worktree } |
-            Select-Object -First 1
-        if (-not $match) {
-            Write-Error "Worktree not found: $Worktree"; return $null
+    if ($subdirectory) {
+        $target = Join-Path $target $subdirectory
+        if (-not (Test-Path -LiteralPath $target -PathType Container)) {
+            Write-Error "Not found: $Name"; return $null
         }
-        return $match.Path
     }
-
-    $preferred = $trees |
-        Where-Object { $_.Branch -eq 'main' } | Select-Object -First 1
-    if (-not $preferred) {
-        $preferred = $trees |
-            Where-Object { $_.Branch -eq 'master' } |
-            Select-Object -First 1
-    }
-    if (-not $preferred) {
-        $preferred = $trees |
-            Where-Object { -not $_.Bare } | Select-Object -First 1
-    }
-    if (-not $preferred) { $preferred = $trees[0] }
-    return $preferred.Path
+    return $target
 }
 
 function p {
@@ -141,35 +160,68 @@ function pc {
     if ($target) { code $target }
 }
 
-Register-ArgumentCompleter -CommandName p, pc -ScriptBlock {
-    param($wordToComplete, $commandAst, $cursorPosition)
+Register-ArgumentCompleter -CommandName p, pc -ParameterName Project -ScriptBlock {
+    param($commandName, $parameterName, $wordToComplete, $commandAst,
+        $fakeBoundParameters)
 
     $codeDir = Join-Path $HOME "Code"
-    $tokens = $commandAst.CommandElements
-    $pos = if ($wordToComplete) { $tokens.Count - 1 } else { $tokens.Count }
+    if (-not (Test-Path -LiteralPath $codeDir)) { return }
 
-    if ($pos -le 1) {
-        if (-not (Test-Path -LiteralPath $codeDir)) { return }
-        Get-ChildItem -LiteralPath $codeDir -Directory `
-                -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -like "$wordToComplete*" } |
-            ForEach-Object {
-                [System.Management.Automation.CompletionResult]::new(
-                    $_.Name, $_.Name, 'ParameterValue', $_.Name)
-            }
+    [string]$normalized = $wordToComplete -replace '\\', '/'
+    $slash = $normalized.IndexOf('/')
+    if ($slash -ge 0) {
+        $project = $normalized.Substring(0, $slash)
+        $relative = $normalized.Substring($slash + 1)
+        $lastSlash = $relative.LastIndexOf('/')
+        $parent = if ($lastSlash -ge 0) {
+            $relative.Substring(0, $lastSlash + 1)
+        } else { '' }
+        $leaf = if ($lastSlash -ge 0) {
+            $relative.Substring($lastSlash + 1)
+        } else { $relative }
+        $base = Resolve-Project -Name $project 2>$null
+        if (-not $base) { return }
+        $searchDir = if ($parent) { Join-Path $base $parent } else { $base }
+        $prefix = "$project/$parent"
+    } else {
+        $searchDir = $codeDir
+        $prefix = ''
+        $leaf = $normalized
     }
-    elseif ($pos -eq 2) {
-        $proj = $tokens[1].Value
-        $pdir = Join-Path $codeDir $proj
-        if (-not (Test-Path -LiteralPath $pdir)) { return }
-        $porcelain = git -C $pdir worktree list --porcelain 2>$null
-        foreach ($line in $porcelain) {
-            if ($line -like 'branch refs/heads/*') {
-                $br = $line.Substring('branch refs/heads/'.Length)
-                if ($br -like "$wordToComplete*") {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $br, $br, 'ParameterValue', $br)
-                }
+
+    Get-ChildItem -LiteralPath $searchDir -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "$leaf*" } |
+        ForEach-Object {
+            $completion = "$prefix$($_.Name)"
+            if ($slash -ge 0) { $completion += '/' }
+            [System.Management.Automation.CompletionResult]::new(
+                $completion, $completion, 'ParameterValue', $_.FullName)
+        }
+}
+
+Register-ArgumentCompleter -CommandName p, pc -ParameterName Worktree -ScriptBlock {
+    param($commandName, $parameterName, $wordToComplete, $commandAst,
+        $fakeBoundParameters)
+
+    $projectArgument = if ($fakeBoundParameters -and
+        $fakeBoundParameters.Contains('Project')) {
+        [string]$fakeBoundParameters['Project']
+    } elseif ($commandAst.CommandElements.Count -gt 1) {
+        [string]$commandAst.CommandElements[1].Value
+    } else { '' }
+    if (-not $projectArgument) { return }
+
+    $codeDir = Join-Path $HOME "Code"
+    $proj = ($projectArgument -split '/', 2)[0]
+    $pdir = Join-Path $codeDir $proj
+    if (-not (Test-Path -LiteralPath $pdir)) { return }
+    $porcelain = git -C $pdir worktree list --porcelain 2>$null
+    foreach ($line in $porcelain) {
+        if ($line -like 'branch refs/heads/*') {
+            $br = $line.Substring('branch refs/heads/'.Length)
+            if ($br -like "$wordToComplete*") {
+                [System.Management.Automation.CompletionResult]::new(
+                    $br, $br, 'ParameterValue', $br)
             }
         }
     }
