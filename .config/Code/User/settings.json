@@ -29,7 +29,7 @@
     "editor.codeLens": false,
     "editor.cursorBlinking": "smooth",
     "editor.cursorSmoothCaretAnimation": "on",
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "editor.guides.bracketPairs": "active",
     "editor.guides.indentation": false,
     "editor.hover.enabled": "on",
