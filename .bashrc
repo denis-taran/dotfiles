@@ -555,7 +555,11 @@ command -v code >/dev/null 2>&1 && alias c='code'
 
 shopt -s globstar direxpand autocd checkwinsize cdspell dirspell
 
-command -v bat >/dev/null 2>&1 && export MANPAGER="bat -l man -p"
+if command -v bat >/dev/null 2>&1; then
+    export MANPAGER="bat -l man -p"
+elif command -v batcat >/dev/null 2>&1; then
+    export MANPAGER="batcat -l man -p"
+fi
 
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init --cmd cd bash)"
 
@@ -571,6 +575,18 @@ if command -v fzf >/dev/null 2>&1; then
         export FZF_DEFAULT_COMMAND='git ls-files --cached --others --exclude-standard 2>/dev/null || find . -type f -not -path "*/.git/*"'
     fi
     export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    export FZF_CTRL_R_COMMAND=
+
+    if command -v bat >/dev/null 2>&1; then
+        _fzf_file_preview='bat --color=always --style=numbers -- {}'
+    elif command -v batcat >/dev/null 2>&1; then
+        _fzf_file_preview='batcat --color=always --style=numbers -- {}'
+    else
+        _fzf_file_preview='head -c 100000 -- {} | LC_ALL=C tr -d "\000-\010\013-\037\177" | sed -n "1,500p" | nl -ba'
+    fi
+
+    export FZF_CTRL_T_OPTS="--preview '$_fzf_file_preview'"
+    unset _fzf_file_preview
 
     eval "$(fzf --bash)"
 fi
