@@ -53,7 +53,8 @@ function gd { git diff @args }
 function gl { git log --oneline -20 @args }
 function gds { git diff --staged @args }
 function gp { git push @args }
-function gpf { git push --force-with-lease @args }
+function gsw { git switch @args }
+function gswc { git switch -c @args }
 function gca { git commit --amend @args }
 function gcan { git commit --amend --no-edit @args }
 
