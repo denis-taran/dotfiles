@@ -91,6 +91,11 @@ function Install-DotFiles() {
     Set-Link -LinkPath "$Env:UserProfile/.config/git/ignore" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\ignore')
     Set-Link -LinkPath "$Env:UserProfile/.config/git/config" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.config\git\config')
     Set-Link -LinkPath "$Env:UserProfile/.editorconfig" -TargetPath (Join-Path -Path $RepoRoot -ChildPath '.editorconfig')
+
+    $privateEnvPath = Join-Path $Env:UserProfile 'Code\private-configuration\env.ps1'
+    if (Test-Path -LiteralPath $privateEnvPath -PathType Leaf) {
+        Set-Link -LinkPath "$Env:UserProfile/env.ps1" -TargetPath $privateEnvPath
+    }
 }
 
 function Install-VsCodeExtensions() {
@@ -668,18 +673,6 @@ function Set-PowerShellSettings() {
     [Environment]::SetEnvironmentVariable("POWERSHELL_UPDATECHECK", "Off", "User")
 }
 
-function Set-EnvVars() {
-    $envJson = Join-Path $RepoRoot "env.json"
-    if (-not (Test-Path $envJson)) { return }
-    $vars = Get-Content $envJson -Raw | ConvertFrom-Json
-    foreach ($var in $vars) {
-        $existing = [Environment]::GetEnvironmentVariable($var.name, "User")
-        if ($null -eq $existing) {
-            [Environment]::SetEnvironmentVariable($var.name, $var.value, "User")
-        }
-    }
-}
-
 function Invoke-PerformanceTweak {
     fsutil behavior set DisableLastAccess 1
     fsutil 8dot3name set C: 1
@@ -844,7 +837,6 @@ Set-LockScreenSettings
 Disable-ContentDelivery
 Set-PowerShellProfile
 Set-PowerShellSettings
-Set-EnvVars
 Set-PrivacySettings
 Set-XdgPaths
 

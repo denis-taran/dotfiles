@@ -11,6 +11,9 @@ Both environments share comparable aliases (`g`, `c`, `vi`, `k`) and use XDG bas
 
 ## Local files
 
-Keep secrets out of this repo. Machine-specific files assumed to exist:
-- `~/.env.sh` for local overrides
+Keep secrets out of this repo. Environment files live in the private
+`~/Code/private-configuration` repository and are linked by the bootstrap:
+
+- `env.sh` to `~/.env.sh` on Linux
+- `env.ps1` to `~/env.ps1` on Windows
 - `~/.config/git/local` for identity and signing config

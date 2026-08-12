@@ -10,7 +10,6 @@ readonly _YQ_VERSION="v4.53.2"
 readonly _ANSIBLE_VERSION="13.6.0"
 readonly _DOTNET_SDK_VERSION="10.0"
 readonly _NODE_MAJOR="24"
-readonly _CODEX_VERSION="0.145.0"
 
 declare -Ar _KIND_SHA256=(
     [amd64]="eb244cbafcc157dff60cf68693c14c9a75c4e6e6fedaf9cd71c58117cb93e3fa"
@@ -314,6 +313,11 @@ declare -A links=(
     ["$SCRIPT_DIR/.config/Code/User/settings.json"]="$HOMEDIR/.config/Code/User/settings.json"
 )
 
+_private_env="$HOMEDIR/Code/private-configuration/env.sh"
+if [[ -f "$_private_env" ]]; then
+    links["$_private_env"]="$HOMEDIR/.env.sh"
+fi
+
 _link_owner=""
 if $_is_root; then _link_owner="$USERNAME"; fi
 
@@ -392,25 +396,6 @@ if is_wsl; then
 fi
 
 command -v xdg-user-dirs-update >/dev/null 2>&1 && run_as_user xdg-user-dirs-update
-
-install_env_vars() {
-    local env_file="$HOMEDIR/.env.sh"
-    local env_json="$SCRIPT_DIR/env.json"
-
-    [[ -f "$env_json" ]] || return 0
-
-    run_as_user touch "$env_file"
-    chmod 600 "$env_file"
-
-    local name value
-    while IFS=$'\t' read -r name value; do
-        if ! grep -q "^export ${name}=" "$env_file"; then
-            printf 'export %s="%s"\n' "$name" "$value" >>"$env_file"
-        fi
-    done < <(jq -r '.[] | [.name, .value] | @tsv' "$env_json")
-}
-
-install_env_vars
 
 _git_cfg="$HOMEDIR/.config/git/local"
 _allowed_signers="$HOMEDIR/.config/git/allowed_signers"
@@ -663,9 +648,6 @@ if $_is_ubuntu && $_is_root; then
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
         azure-cli helm "dotnet-sdk-${_DOTNET_SDK_VERSION}" nodejs terraform
 
-    run_as_user npm install --global --prefix "$HOMEDIR/.local" \
-        "@openai/codex@${_CODEX_VERSION}"
-
     if ! is_wsl; then
         apt_key "https://downloads.1password.com/linux/keys/1password.asc" \
             "/usr/share/keyrings/1password-archive-keyring.gpg" \
@@ -695,6 +677,10 @@ if $_is_ubuntu && $_is_root; then
 
     echo "net.ipv4.ip_forward=1" >/etc/sysctl.d/99-ip-forward.conf
     sysctl -w net.ipv4.ip_forward=1
+
+    # kind alone burns ~100 inotify instances and the 128 default starves file watchers
+    echo "fs.inotify.max_user_instances=1024" >/etc/sysctl.d/99-inotify.conf
+    sysctl -w fs.inotify.max_user_instances=1024
 
     if is_wsl; then
         systemctl mask tmp.mount
@@ -783,6 +769,17 @@ UNIT
     fi
 
     sudo -u "$USERNAME" -H kubectl config use-context kind-kind
+fi
+
+_private_installer="$HOMEDIR/Code/private-configuration/scripts/install-linux.sh"
+if [[ -x "$_private_installer" ]]; then
+    echo "Installing private configuration."
+    USERNAME="$USERNAME" \
+        HOMEDIR="$HOMEDIR" \
+        HAS_GRAPHICAL_DESKTOP="$_has_graphical_desktop" \
+        "$_private_installer"
+else
+    echo "Skipping private configuration."
 fi
 
 ###############################################################################

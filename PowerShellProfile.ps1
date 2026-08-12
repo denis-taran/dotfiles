@@ -1,4 +1,12 @@
 
+###############################################################################
+# Environment
+###############################################################################
+
+if (Test-Path -LiteralPath (Join-Path $HOME "env.ps1")) {
+    . (Join-Path $HOME "env.ps1")
+}
+
 $_nonInteractive = [Environment]::GetCommandLineArgs() |
     Where-Object { $_ -match '^-(NonInteractive|noni|Command|c|File|f|EncodedCommand|e|ec)$' }
 if ($_nonInteractive -or -not [Environment]::UserInteractive) {
@@ -6,14 +14,6 @@ if ($_nonInteractive -or -not [Environment]::UserInteractive) {
 }
 
 Set-StrictMode -Version 3.0
-
-###############################################################################
-# Environment
-###############################################################################
-
-if (Test-Path -LiteralPath (Join-Path $HOME ".env.ps1")) {
-    . (Join-Path $HOME ".env.ps1")
-}
 
 ###############################################################################
 # Common Aliases
@@ -57,6 +57,10 @@ function gsw { git switch @args }
 function gswc { git switch -c @args }
 function gca { git commit --amend @args }
 function gcan { git commit --amend --no-edit @args }
+function gr {
+    $root = git rev-parse --show-toplevel
+    if ($LASTEXITCODE -eq 0) { Set-Location -LiteralPath $root }
+}
 
 function mkcd {
     $Target = New-Item -ItemType Directory -Path $args[0] -Force
