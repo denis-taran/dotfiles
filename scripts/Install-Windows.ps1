@@ -762,7 +762,7 @@ function Uninstall-OneDrive() {
 function Backup-File($Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return }
     $ts = Get-Date -Format "yyyy-MM-dd HH-mm-ss"
-    $backupDir = Join-Path $HOME "Backups"
+    $backupDir = Join-Path $HOME "Backups/Windows"
     New-Item $backupDir -ItemType Directory -Force | Out-Null
     $backupName = "$ts - $(Split-Path $Path -Leaf)"
     Copy-Item -LiteralPath $Path -Destination (Join-Path $backupDir $backupName) -Force

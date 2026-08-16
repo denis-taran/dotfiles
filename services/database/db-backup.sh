@@ -16,10 +16,13 @@ chmod 700 "$BACKUP_DIR"
 
 FILENAME="$(date +'%Y-%m-%dT%H-%M-%S').dump.age"
 STAGING_DIR="$(mktemp -d "$BACKUP_DIR/.db-backup.XXXXXX")"
-trap 'rm -rf -- "$STAGING_DIR"' EXIT
+PGPASS_FILE="$(mktemp)"
+trap 'rm -rf -- "$STAGING_DIR" "$PGPASS_FILE"' EXIT
 TMP_FILE="$STAGING_DIR/$FILENAME"
 
-PGPASSFILE="$CRED_DIR/db-pgpass" \
+cat "$CRED_DIR/db-pgpass" >"$PGPASS_FILE"
+
+PGPASSFILE="$PGPASS_FILE" \
     PGSSLMODE=verify-full \
     PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt \
     pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" \

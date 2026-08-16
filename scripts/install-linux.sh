@@ -92,9 +92,9 @@ is_wsl() {
     grep -qi "microsoft" /proc/version 2>/dev/null
 }
 
-has_graphical_desktop() {
-    ! is_wsl && systemctl get-default 2>/dev/null | grep -qx 'graphical.target'
-}
+_has_graphical_desktop=false
+! is_wsl && systemctl get-default 2>/dev/null | grep -qx 'graphical.target' &&
+    _has_graphical_desktop=true
 
 remove_snapd() {
     local snap_name
@@ -774,7 +774,7 @@ fi
 _private_installer="$HOMEDIR/Code/private-configuration/scripts/install-linux.sh"
 if [[ -x "$_private_installer" ]]; then
     echo "Installing private configuration."
-    USERNAME="$USERNAME" \
+    env USERNAME="$USERNAME" \
         HOMEDIR="$HOMEDIR" \
         HAS_GRAPHICAL_DESKTOP="$_has_graphical_desktop" \
         "$_private_installer"
@@ -789,7 +789,7 @@ fi
 if ! $_is_root; then
     exit 0
 fi
-if ! has_graphical_desktop; then
+if ! $_has_graphical_desktop; then
     remove_snapd
     if is_wsl; then
         echo "WSL detected. Snap removed; skipping GUI apps."
