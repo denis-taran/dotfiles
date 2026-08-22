@@ -252,6 +252,7 @@ export DOCKER_CLI_HINTS="false"
 alias k='kubectl'
 
 if command -v kubectl >/dev/null 2>&1; then
+    # shellcheck disable=SC1090
     source <(kubectl completion bash)
     complete -o default -F __start_kubectl k
 fi
