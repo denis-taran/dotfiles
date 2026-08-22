@@ -329,7 +329,7 @@ function Set-SecurityBaseline() {
     }
 }
 
-function Set-DefenderAsrRules() {
+function Set-DefenderHardening() {
     if (-not (Get-Command Set-MpPreference -ErrorAction SilentlyContinue)) {
         Write-Warning "Defender cmdlets unavailable. Skipping ASR rules."
         return
@@ -358,9 +358,9 @@ function Set-DefenderAsrRules() {
         'b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4' = 1 # unsigned processes running from usb
         '33ddedf1-c6e0-47cb-833e-de6133960387' = 1 # rebooting into safe mode
         'c0033c00-d16d-4114-a5a0-dc9b3a7d2ceb' = 1 # copied or impersonated system tools
-        '5beb7efe-fd9a-4556-801d-275e5ffc04cc' = 2 # obfuscated scripts
+        'c1db55ab-c21a-4637-bb3f-a12568109d35' = 1 # ransomware heuristics
+        '5beb7efe-fd9a-4556-801d-275e5ffc04cc' = 2 # obfuscated scripts, noisy on minified js
         'd1e49aac-8f56-4280-b9ba-993a6d77406c' = 2 # process creation from psexec and wmi
-        'c1db55ab-c21a-4637-bb3f-a12568109d35' = 2 # ransomware heuristics
     }
 
     try {
@@ -371,6 +371,30 @@ function Set-DefenderAsrRules() {
         Write-Host "asr rules applied" -ForegroundColor Green
     } catch {
         Write-Warning "Failed to apply ASR rules: $($_.Exception.Message)"
+    }
+
+    # stops known c2 and phishing domains for all processes, not only the browser
+    try {
+        Set-MpPreference -EnableNetworkProtection Enabled -ErrorAction Stop
+    } catch {
+        Write-Warning "Failed to enable network protection: $($_.Exception.Message)"
+    }
+}
+
+function Set-FirewallHardening() {
+    Disable-NetFirewallRule -DisplayGroup 'Cast to Device functionality' -ErrorAction SilentlyContinue
+
+    # printer/scanner traffic should stay on the local network
+    Get-NetFirewallRule -Direction Inbound -Action Allow -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -match 'Brother|iPrint|iPS Monitor' -and $_.Profile -match 'Public|Any' } |
+        Set-NetFirewallRule -Profile Private
+
+    # uninstallers often leave stale inbound rules pointing at paths that are gone
+    foreach ($rule in Get-NetFirewallRule -Direction Inbound -Action Allow -ErrorAction SilentlyContinue) {
+        $program = ($rule | Get-NetFirewallApplicationFilter -ErrorAction SilentlyContinue).Program
+        if ($program -notmatch '^[A-Za-z]:\\') { continue }
+        if (Test-Path -LiteralPath $program) { continue }
+        Remove-NetFirewallRule -Name $rule.Name -ErrorAction SilentlyContinue
     }
 }
 
@@ -671,6 +695,9 @@ function Set-PowerShellProfile() {
 
 function Set-PowerShellSettings() {
     [Environment]::SetEnvironmentVariable("POWERSHELL_UPDATECHECK", "Off", "User")
+    if ($IsAdmin) {
+        Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force
+    }
 }
 
 function Invoke-PerformanceTweak {
@@ -864,7 +891,8 @@ if ($IsAdmin -and -not $IsWorkMachine) {
     Disable-Services
     Set-SecurityBaseline
     Set-WindowsSecurity
-    Set-DefenderAsrRules
+    Set-DefenderHardening
+    Set-FirewallHardening
     Set-DeveloperSettings
     Set-EdgeSettings
     Disable-ConnectivityFeatures
