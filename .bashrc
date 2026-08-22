@@ -4,15 +4,15 @@
 # Environment (interactive and non-interactive)
 ###############################################################################
 
-# shellcheck source=/dev/null
-[[ -f ~/.env.sh ]] && . ~/.env.sh
-
 path_prepend() {
     [[ -d "$1" && ":$PATH:" != *":$1:"* ]] && export PATH="$1:$PATH"
 }
 
 path_prepend "$HOME/.local/bin"
 path_prepend "$HOME/Code/dotfiles/scripts"
+
+# shellcheck source=/dev/null
+[[ -f ~/.env.sh ]] && . ~/.env.sh
 
 grep -qi microsoft /proc/version 2>/dev/null && _IS_WSL=1
 

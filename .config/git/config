@@ -10,8 +10,6 @@
     autoSetupRemote = true
     followTags = true
 [core]
-    attributesFile = ~/.config/git/attributes
-	excludesfile = ~/.config/git/ignore
 	autocrlf = input
     symlinks = true
 [color]
@@ -70,4 +68,4 @@
 	required = true
 	clean = git-lfs clean -- %f
 [include]
-    path = ~/.config/git/local
+    path = local

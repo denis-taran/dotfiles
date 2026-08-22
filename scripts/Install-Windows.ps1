@@ -749,6 +749,16 @@ function Set-XdgPaths() {
         "User")
 }
 
+function Set-GitEnvironment() {
+    $gitConfig = Join-Path $env:USERPROFILE ".config\git\config"
+
+    $env:GIT_CONFIG_GLOBAL = $gitConfig
+    [Environment]::SetEnvironmentVariable(
+        "GIT_CONFIG_GLOBAL",
+        $gitConfig,
+        "User")
+}
+
 function Uninstall-OneDrive() {
     Write-Host "Uninstalling OneDrive..."
     winget uninstall -e --id Microsoft.OneDrive --accept-source-agreements
@@ -817,6 +827,7 @@ $IsWorkMachine = $workAnswer -eq 'y'
 
 Backup-Registry
 Install-DotFiles
+Set-GitEnvironment
 Set-CodeFolderPermissions
 if ($IsAdmin -and -not $IsWorkMachine) { Install-Apps }
 if (-not $IsWorkMachine -or (Read-Host "Install VS Code extensions? (y/n)") -eq 'y') {
