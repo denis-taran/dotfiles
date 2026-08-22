@@ -695,9 +695,6 @@ function Set-PowerShellProfile() {
 
 function Set-PowerShellSettings() {
     [Environment]::SetEnvironmentVariable("POWERSHELL_UPDATECHECK", "Off", "User")
-    if ($IsAdmin) {
-        Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force
-    }
 }
 
 function Invoke-PerformanceTweak {
