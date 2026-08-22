@@ -46,7 +46,7 @@ alias gcan='git commit --amend --no-edit'
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
-alias grep='grep --color=auto'
+alias grepex='grep --exclude-dir={.git,node_modules,bin,obj,artifacts,.venv,venv,__pycache__,.pytest_cache,.mypy_cache,.ruff_cache,.tox,.nox,dist,build,coverage,htmlcov,.next,.nuxt,.terraform,.terragrunt-cache,playwright-report,test-results}'
 alias sudo='sudo '
 alias showpath='printf "%s\n" "$PATH" | tr ":" "\n"'
 
