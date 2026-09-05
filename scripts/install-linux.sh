@@ -215,6 +215,7 @@ if $_is_ubuntu && $_is_root; then
         "git-lfs"
         "git"
         "htop"
+        "ipcalc"
         "iproute2"
         "lsof"
         "iptables"

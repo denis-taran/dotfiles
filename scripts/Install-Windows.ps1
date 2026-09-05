@@ -381,19 +381,45 @@ function Set-DefenderHardening() {
     }
 }
 
+function Block-Mshta() {
+    # applocker policy is overkill here for phishing prevention
+    $ifeo = "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
+    $blocker = "$env:WINDIR\System32\cmd.exe /c exit"
+
+    foreach ($view in '64', '32') {
+        REG ADD "$ifeo\mshta.exe" /v Debugger /t REG_SZ /d $blocker /f "/reg:$view"
+    }
+
+    # open .hta in notepad instead of running it
+    $htaOpen = "HKLM:\SOFTWARE\Classes\htablocked\shell\open\command"
+    New-Item -Path $htaOpen -Force | Out-Null
+    Set-ItemProperty -Path $htaOpen -Name '(Default)' `
+        -Value '%SystemRoot%\System32\notepad.exe "%1"' -Type ExpandString
+    REG ADD "HKLM\SOFTWARE\Classes\.hta" /ve /t REG_SZ /d "htablocked" /f
+
+    # hkcu assoc wins over hklm
+    Remove-Item -Path "HKCU:\SOFTWARE\Classes\.hta" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.hta\UserChoice" `
+        -Recurse -Force -ErrorAction SilentlyContinue
+
+    Write-Host "mshta execution blocked" -ForegroundColor Green
+}
+
 function Set-FirewallHardening() {
     Disable-NetFirewallRule -DisplayGroup 'Cast to Device functionality' -ErrorAction SilentlyContinue
 
-    # printer/scanner traffic should stay on the local network
     Get-NetFirewallRule -Direction Inbound -Action Allow -ErrorAction SilentlyContinue |
-        Where-Object { $_.DisplayName -match 'Brother|iPrint|iPS Monitor' -and $_.Profile -match 'Public|Any' } |
-        Set-NetFirewallRule -Profile Private
+        Where-Object { $_.DisplayName -match 'Brother|iPrint|iPS Monitor' } |
+        Set-NetFirewallRule -Profile Any -RemoteAddress LocalSubnet
 
-    # uninstallers often leave stale inbound rules pointing at paths that are gone
+    $mounted = (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue).Name
     foreach ($rule in Get-NetFirewallRule -Direction Inbound -Action Allow -ErrorAction SilentlyContinue) {
         $program = ($rule | Get-NetFirewallApplicationFilter -ErrorAction SilentlyContinue).Program
-        if ($program -notmatch '^[A-Za-z]:\\') { continue }
+        if ($program -notmatch '^([A-Za-z]):\\') { continue }
+        if ($Matches[1] -notin $mounted) { continue }
+        if ($program.StartsWith($env:WINDIR, 'OrdinalIgnoreCase')) { continue }
         if (Test-Path -LiteralPath $program) { continue }
+        Write-Host "remove stale firewall rule '$($rule.DisplayName)' -> $program" -ForegroundColor Yellow
         Remove-NetFirewallRule -Name $rule.Name -ErrorAction SilentlyContinue
     }
 }
@@ -889,6 +915,7 @@ if ($IsAdmin -and -not $IsWorkMachine) {
     Set-SecurityBaseline
     Set-WindowsSecurity
     Set-DefenderHardening
+    Block-Mshta
     Set-FirewallHardening
     Set-DeveloperSettings
     Set-EdgeSettings

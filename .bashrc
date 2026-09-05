@@ -58,6 +58,19 @@ elif command -v wl-copy >/dev/null 2>&1; then
     alias pbpaste='wl-paste'
 fi
 
+if [[ -n "$_IS_WSL" ]]; then
+    open() {
+        local target="${1:-.}"
+        [[ -e "$target" ]] && target="$(wslpath -w "$(realpath "$target")")"
+        explorer.exe "$target"
+        return 0 # explorer.exe exits non-zero even on success
+    }
+elif command -v xdg-open >/dev/null 2>&1; then
+    open() {
+        xdg-open "${1:-.}" >/dev/null 2>&1
+    }
+fi
+
 venv() {
     if [[ -d ".venv" ]]; then
         source .venv/bin/activate

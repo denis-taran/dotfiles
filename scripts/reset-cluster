@@ -11,8 +11,10 @@ if grep -qi microsoft /proc/version; then
     export NETAVARK_FW=iptables
     sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
     sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
-    podman network rm kind 2>/dev/null || true
-    podman network create --ipv6=false kind
+    if [ "$(podman network inspect kind --format '{{.IPv6Enabled}}' 2>/dev/null)" = "true" ]; then
+        podman network rm kind
+    fi
+    podman network exists kind || podman network create --ipv6=false kind
 fi
 
 kind create cluster --name "$name"

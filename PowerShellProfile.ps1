@@ -35,7 +35,12 @@ if (-not (Get-Command touch -ErrorAction SilentlyContinue)) {
     }}
 }
 function which { (Get-Command $args[0] -ErrorAction SilentlyContinue).Source }
-function open { Start-Process $args[0] }
+function open {
+    $target = if ($args.Count -gt 0) { $args[0] } else { "." }
+    $resolved = Resolve-Path -LiteralPath $target -ErrorAction SilentlyContinue
+    if ($resolved) { $target = $resolved.Path }
+    Start-Process $target
+}
 function pbcopy { $input | Set-Clipboard }
 function pbpaste { Get-Clipboard }
 function showpath { $env:PATH -split [IO.Path]::PathSeparator }
