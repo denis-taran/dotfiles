@@ -311,6 +311,11 @@ fi
 shopt -s promptvars
 declare -a _prompt_text=()
 
+declare -i _command_started=-1
+
+# shellcheck disable=SC2016
+PS0='${_command_started:$((_command_started=SECONDS,0)):0}'"${PS0-}"
+
 function clr {
     local -n _out="$1"
     [[ -n "$2" ]] || return
@@ -475,6 +480,26 @@ function kube_prompt {
 function set_prompt {
     local exit_status=${__prompt_exit:-0}
 
+    local command_elapsed=0
+    _command_duration_out=""
+    if ((_command_started >= 0)); then
+        command_elapsed=$((SECONDS - _command_started))
+        _command_started=-1
+        if ((command_elapsed >= 60)); then
+            printf '\a'
+            if ((command_elapsed >= 3600)); then
+                printf -v _command_duration_out 'Took %dh %02dm %02ds' \
+                    "$((command_elapsed / 3600))" \
+                    "$(((command_elapsed % 3600) / 60))" \
+                    "$((command_elapsed % 60))"
+            else
+                printf -v _command_duration_out 'Took %dm %02ds' \
+                    "$((command_elapsed / 60))" \
+                    "$((command_elapsed % 60))"
+            fi
+        fi
+    fi
+
     local ssh uchar uchar_color
     _prompt_text=()
     _git_prompt_out=""
@@ -487,6 +512,11 @@ function set_prompt {
 
     local pwd_str="${PWD/#$HOME/\~}"
     PS1=""
+    if [[ -n "$_command_duration_out" ]]; then
+        PS1+=$'\n\n'
+        clr PS1 "$_command_duration_out" "92m"
+        PS1+=$'\n\n'
+    fi
     if [[ -n "$ssh" ]]; then
         clr PS1 "$ssh" "91m"
         PS1+=" "
